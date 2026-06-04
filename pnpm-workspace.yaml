@@ -1,5 +1,6 @@
 allowBuilds:
   '@apollo/protobufjs': true
   '@nestjs/core': true
+  bcrypt: false
   esbuild: true
   unrs-resolver: true
