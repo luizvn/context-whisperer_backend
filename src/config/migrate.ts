@@ -1,8 +1,6 @@
-// src/config/migrate.ts
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
-import 'dotenv/config'; // Se você estiver usando um arquivo .env
 
 async function runMigrations() {
   console.log('⏳ Iniciando execução das migrations...');
