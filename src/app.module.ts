@@ -1,9 +1,10 @@
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphqlConfigService } from './config/graphql.config';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './config/database.module';
+import { UserResolver } from './modules/users/user.resolver';
 import {ConfigModule } from '@nestjs/config'
 import { AgentsModule } from './agents/agents.module';
 
@@ -19,6 +20,6 @@ import { AgentsModule } from './agents/agents.module';
     AgentsModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [UserResolver],
 })
 export class AppModule {}
