@@ -8,6 +8,6 @@ import { OpenAIModule } from '../openai/openai.module';
   imports: [ConfigModule, OpenAIModule],
   providers: [AgentsService],
   exports: [AgentsService],
-  controllers: [AgentsController]
+  controllers: [AgentsController],
 })
 export class AgentsModule {}

@@ -6,16 +6,11 @@ import { DatabaseModule } from './config/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/user.module';
 import { UserResolver } from './modules/users/user.resolver';
-import { ConfigModule } from '@nestjs/config';
 import { AgentsModule } from './agents/agents.module';
 import { OpenAIModule } from './openai/openai.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ['.env', '.env.local'],
-    }),
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
       useClass: GraphqlConfigService,

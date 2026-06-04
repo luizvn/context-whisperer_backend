@@ -2,36 +2,33 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { AgentsService } from './agents.service';
 import {
   ApiTags,
-//   ApiOperation,
+  //   ApiOperation,
   ApiBody,
-  ApiResponse
+  ApiResponse,
 } from '@nestjs/swagger';
 
-    @ApiTags('Agents')
-    @Controller('agents')
-    export class AgentsController {
-    constructor(
-        private readonly agentsService: AgentsService,
-    ) {}
+@ApiTags('Agents')
+@Controller('agents')
+export class AgentsController {
+  constructor(private readonly agentsService: AgentsService) {}
 
-    @Post('uml')
-    @ApiBody({
+  @Post('uml')
+  @ApiBody({
     schema: {
-        type: 'object',
-        properties: {
+      type: 'object',
+      properties: {
         description: {
-            type: 'string',
-            example:
-            'Sistema de gerenciamento de biblioteca',
+          type: 'string',
+          example: 'Sistema de gerenciamento de biblioteca',
         },
-        },
+      },
     },
-    })
-    @ApiResponse({
+  })
+  @ApiResponse({
     status: 200,
     schema: {
-        type: 'string',
-        example: `
+      type: 'string',
+      example: `
     Atores:
     - Usuário
 
@@ -43,12 +40,8 @@ import {
     @enduml
     `,
     },
-    })
-  async generateUml(
-    @Body() body: { description: string },
-  ) {
-    return this.agentsService.generateUml(
-      body.description,
-    );
+  })
+  async generateUml(@Body() body: { description: string }) {
+    return this.agentsService.generateUml(body.description);
   }
 }
