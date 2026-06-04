@@ -43,6 +43,18 @@ npm run db:generate
 npm run start:dev
 ```
 
+## Executando a api de documentação: 
+
+Entre no navegador após rodar o comando anterior e coloque o seguinte trecho:
+
+```
+http://localhost:3000/api
+```
+
+Para testar a geração de artefatos do módulo de agente gerador de MVP, teste a rota:
+
+`/agents/uml`
+
 ### Compilando e executando em produção
 
 ```bash
