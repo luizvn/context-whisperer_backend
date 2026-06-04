@@ -5,15 +5,15 @@ import { IsEmail, IsOptional, Length } from 'class-validator';
 export class RegisterInput {
   @Field()
   @Length(2, 100)
-  name: string;
+  name!: string;
 
   @Field()
   @IsEmail()
-  email: string;
+  email!: string;
 
   @Field()
   @Length(8, 128)
-  password: string;
+  password!: string;
 
   @Field({ nullable: true })
   @IsOptional()

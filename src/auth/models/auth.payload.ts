@@ -4,8 +4,8 @@ import { UserModel } from '../../modules/users/user.model';
 @ObjectType()
 export class AuthPayload {
   @Field()
-  accessToken: string;
+  accessToken!: string;
 
   @Field(() => UserModel)
-  user: UserModel;
+  user!: UserModel;
 }
