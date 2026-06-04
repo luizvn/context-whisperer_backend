@@ -7,6 +7,7 @@ import { DatabaseModule } from './config/database.module';
 import { UserResolver } from './modules/users/user.resolver';
 import {ConfigModule } from '@nestjs/config'
 import { AgentsModule } from './agents/agents.module';
+import { OpenAIModule } from './openai/openai.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AgentsModule } from './agents/agents.module';
     DatabaseModule,
     AuthModule,
     AgentsModule,
+    OpenAIModule,
   ],
   controllers: [],
   providers: [UserResolver],
