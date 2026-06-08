@@ -2,6 +2,7 @@ import { ApolloDriverConfig } from '@nestjs/apollo';
 import { Injectable } from '@nestjs/common';
 import { GqlOptionsFactory } from '@nestjs/graphql';
 import { join } from 'path';
+import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 
 @Injectable()
 export class GraphqlConfigService implements GqlOptionsFactory {
@@ -12,8 +13,13 @@ export class GraphqlConfigService implements GqlOptionsFactory {
       path: '/api/graphql',
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
-      playground: !isProduction,
+      playground: false,
       introspection: !isProduction,
+      plugins: [
+        ApolloServerPluginLandingPageLocalDefault({
+          embed: true,
+        }),
+      ],
 
       context: (request: unknown, reply: unknown) => ({ request, reply }),
 

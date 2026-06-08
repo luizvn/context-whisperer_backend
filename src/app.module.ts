@@ -5,7 +5,6 @@ import { GraphqlConfigService } from './config/graphql.config';
 import { DatabaseModule } from './config/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/user.module';
-import { UserResolver } from './modules/users/user.resolver';
 import { AgentsModule } from './agents/agents.module';
 import { OpenAIModule } from './openai/openai.module';
 
@@ -22,6 +21,6 @@ import { OpenAIModule } from './openai/openai.module';
     OpenAIModule,
   ],
   controllers: [],
-  providers: [UserResolver],
+  providers: [],
 })
 export class AppModule {}

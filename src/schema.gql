@@ -2,9 +2,9 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-type AuthPayload {
-  accessToken: String!
-  user: UserModel!
+type AuthResponse {
+  access_token: String!
+  user: User!
 }
 
 """
@@ -18,24 +18,21 @@ input LoginInput {
 }
 
 type Mutation {
-  login(input: LoginInput!): AuthPayload!
-  register(input: RegisterInput!): AuthPayload!
+  login(loginInput: LoginInput!): AuthResponse!
+  signup(signupInput: SignupInput!): AuthResponse!
 }
 
 type Query {
-  adminProtected: String!
-  getUsers: String!
-  me: UserModel!
+  me: User!
 }
 
-input RegisterInput {
+input SignupInput {
   email: String!
   name: String!
   password: String!
-  role: String
 }
 
-type UserModel {
+type User {
   createdAt: DateTime!
   email: String!
   id: ID!
