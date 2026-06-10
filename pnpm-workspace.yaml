@@ -5,3 +5,6 @@ allowBuilds:
   bcrypt: false
   esbuild: true
   unrs-resolver: true
+  
+packages:
+  - 'apps/*'
