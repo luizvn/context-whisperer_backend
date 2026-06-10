@@ -1,10 +1,10 @@
 allowBuilds:
   '@apollo/protobufjs': true
   '@nestjs/core': true
-  '@scarf/scarf': set this to true or false
+  '@scarf/scarf': false
   bcrypt: false
   esbuild: true
   unrs-resolver: true
-  
+
 packages:
   - 'apps/*'
