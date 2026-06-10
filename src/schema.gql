@@ -2,9 +2,25 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+"""Os tipos de artefatos que o sistema pode gerar"""
+enum ArtifactType {
+  API_SPEC
+  ARCHITECTURE_DOC
+  DOMAIN_MODEL
+  REQUIREMENTS
+  UML_DIAGRAM
+  USER_STORIES
+}
+
 type AuthResponse {
-  access_token: String!
+  accessToken: String!
   user: User!
+}
+
+input CreateProjectInput {
+  artifacts: [ArtifactType!]!
+  name: String!
+  prompt: String!
 }
 
 """
@@ -18,6 +34,8 @@ input LoginInput {
 }
 
 type Mutation {
+  """Inicia o fluxo de criação de um novo projeto via LangGraph"""
+  createProject(input: CreateProjectInput!): String!
   login(loginInput: LoginInput!): AuthResponse!
   signup(signupInput: SignupInput!): AuthResponse!
 }
