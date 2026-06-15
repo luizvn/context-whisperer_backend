@@ -3,7 +3,7 @@
 # ------------------------------------------------------
 
 type AuthResponse {
-  access_token: String!
+  accessToken: String!
   user: User!
 }
 
