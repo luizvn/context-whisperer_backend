@@ -22,7 +22,16 @@ async function bootstrap() {
 
   app.enableCors();
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
+  await app.listen({
+    port: Number(process.env.PORT || 3000),
+    host: '0.0.0.0',
+  });
+
+  console.log(
+    `Server listening on ${process.env.PORT || 3000}`,
+  );
+
+  // const port = process.env.PORT ?? 3000;
+  // await app.listen(port);
 }
 void bootstrap();
