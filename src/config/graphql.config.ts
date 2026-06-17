@@ -1,36 +1,42 @@
-import { ApolloDriverConfig } from '@nestjs/apollo';
+﻿import { MercuriusDriverConfig } from '@nestjs/mercurius';
 import { Injectable } from '@nestjs/common';
 import { GqlOptionsFactory } from '@nestjs/graphql';
 import { join } from 'path';
-import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
+import { FastifyRequest } from 'fastify';
 
 @Injectable()
 export class GraphqlConfigService implements GqlOptionsFactory {
-  createGqlOptions(): ApolloDriverConfig {
+  createGqlOptions(): MercuriusDriverConfig {
     const isProduction = process.env.NODE_ENV === 'production';
 
     return {
       path: '/api/graphql',
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
-      playground: false,
-      introspection: !isProduction,
-      plugins: [
-        ApolloServerPluginLandingPageLocalDefault({
-          embed: true,
-        }),
-      ],
+      graphiql: !isProduction,
+      subscription: {
+        context: (connection: any, request: FastifyRequest) => {
+          return {
+            request,
+            connection,
 
-      context: (request: unknown, reply: unknown) => ({ request, reply }),
-
-      formatError: (error) => {
-        const originalError = error.extensions?.originalError as
-          | { message?: string; statusCode?: number }
-          | undefined;
+            pubsub:
+              request?.server?.graphql?.pubsub ||
+              connection?._socket?.server?.graphql?.pubsub,
+          };
+        },
+      },
+      context: (request: FastifyRequest, reply: unknown) => ({
+        request,
+        reply,
+      }),
+      errorFormatter: (execution) => {
         return {
-          message: originalError?.message ?? error.message,
-          code: error.extensions?.code ?? 'INTERNAL_SERVER_ERROR',
-          statusCode: originalError?.statusCode ?? 500,
+          statusCode: 200,
+          response: {
+            errors: execution.errors,
+            data: execution.data,
+          },
         };
       },
     };

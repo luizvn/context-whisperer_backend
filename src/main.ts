@@ -7,9 +7,11 @@ import {
 } from '@nestjs/platform-fastify';
 
 async function bootstrap() {
+  const adapter = new FastifyAdapter();
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    adapter,
   );
 
   app.useGlobalPipes(
