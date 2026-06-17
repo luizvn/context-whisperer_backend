@@ -21,7 +21,6 @@ input CreateProjectInput {
   artifacts: [ArtifactType!]!
   name: String!
   prompt: String!
-  threadId: String
 }
 
 """
