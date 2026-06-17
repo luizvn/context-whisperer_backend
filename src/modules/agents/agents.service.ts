@@ -25,8 +25,9 @@ export class AgentsService implements OnModuleInit {
     projectRequest: CreateProjectInput,
     threadId: string,
     user: User,
+    pubSub?: { publish: (params: { topic: string; payload: any }) => void },
   ) {
-    const { id } = await this.requisitionService.create(
+    const { id: requisitionId } = await this.requisitionService.create(
       user.id,
       projectRequest.prompt,
     );
@@ -34,7 +35,8 @@ export class AgentsService implements OnModuleInit {
     const initialState = {
       projectRequest,
       messages: [],
-      requisitionId: id,
+      requisitionId,
+      userId: user.id,
     };
 
     // Invoca o grafo LangGraph com o estado inicial e passa o threadId e os serviços via configurable
@@ -43,6 +45,7 @@ export class AgentsService implements OnModuleInit {
         thread_id: threadId,
         openAIService: this.openAIService, // Passa o serviço injetado pelo NestJS
         scopeProposalService: this.scopeProposalService,
+        pubSub: pubSub,
       },
     });
     return result;

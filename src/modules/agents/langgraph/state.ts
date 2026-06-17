@@ -6,6 +6,7 @@ import { CreateProjectInput } from '../dto/create-project.input';
 export const GraphState = Annotation.Root({
   projectRequest: Annotation<CreateProjectInput>(),
   requisitionId: Annotation<string>(),
+  userId: Annotation<string>(),
   scopeProposalId: Annotation<string>(),
 
   messages: Annotation<BaseMessage[]>({

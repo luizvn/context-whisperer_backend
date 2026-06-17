@@ -4,6 +4,7 @@ import { GraphStateType } from '../state';
 import { AIMessage } from '@langchain/core/messages';
 import { OpenAIService } from '../../../../openai/openai.service';
 import { ScopeProposalService } from '../../../scope-proposals/scope-proposal.service';
+import { ScopeProposal } from '../../../scope-proposals/scope-proposal.model';
 
 export const scopeAgent = async (
   state: GraphStateType,
@@ -14,6 +15,9 @@ export const scopeAgent = async (
   const openAIService = configurable?.openAIService as OpenAIService;
   const scopeProposalService =
     configurable?.scopeProposalService as ScopeProposalService;
+  const pubSub = configurable?.pubSub as {
+    publish: (params: { topic: string; payload: any }) => void;
+  };
 
   const llm = openAIService.getChatModel();
   const structuredLlm = llm.withStructuredOutput(ProposedScopeSchema);
@@ -34,10 +38,24 @@ export const scopeAgent = async (
   const response = await structuredLlm.invoke(prompt);
 
   const markdown = scopeProposalService.buildMarkdownFromResponse(response);
-  const { id } = await scopeProposalService.create(
+  const proposal = (await scopeProposalService.create(
     state.requisitionId,
     markdown,
-  );
+  )) as ScopeProposal;
+
+  // Notifica via GraphQL Subscription que o escopo foi gerado
+  if (pubSub && state.userId) {
+    const payload = {
+      scopeGenerated: proposal,
+      threadId: (configurable?.thread_id as string) || undefined,
+      type: 'SCOPE_GENERATED',
+    };
+    console.log(`[Mercurius PubSub] Publishing to USER_EVENTS_${state.userId}`);
+    pubSub.publish({
+      topic: `USER_EVENTS_${state.userId}`,
+      payload: payload,
+    });
+  }
 
   return {
     // Adiciona uma mensagem ao histórico e salva o ID/estado gerado
@@ -46,6 +64,6 @@ export const scopeAgent = async (
         content: `Escopo gerado com sucesso para: ${response.projectGoal || 'Projeto'}`,
       }),
     ],
-    scopeProposalId: id,
+    scopeProposalId: proposal.id,
   };
 };

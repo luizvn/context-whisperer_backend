@@ -21,6 +21,7 @@ input CreateProjectInput {
   artifacts: [ArtifactType!]!
   name: String!
   prompt: String!
+  threadId: String
 }
 
 """
@@ -44,10 +45,30 @@ type Query {
   me: User!
 }
 
+type ScopeProposal {
+  contentMd: String!
+  createdAt: DateTime!
+  id: ID!
+  requisitionId: String!
+  status: ScopeProposalStatus!
+  userFeedback: String
+}
+
+enum ScopeProposalStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
 input SignupInput {
   email: String!
   name: String!
   password: String!
+}
+
+type Subscription {
+  """Recebe eventos de agentes para o usuário (via parâmetro livre)"""
+  agentEvents(userId: String!): ScopeProposal
 }
 
 type User {
