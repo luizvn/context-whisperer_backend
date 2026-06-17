@@ -48,7 +48,7 @@ npm run start:dev
 Entre no navegador após rodar o comando anterior e coloque o seguinte trecho:
 
 ```
-http://localhost:3000/api
+http://localhost:3000/api/graphql
 ```
 
 Para testar a geração de artefatos do módulo de agente gerador de MVP, teste a rota:
