@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  email        String        @unique
+  password     String
+  role         String        @default("user")
+  requisitions Requisition[]
+  
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Template {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  description    String?
+  content        String
+  
+  artifacts      Artifact[]
+  scopeProposals ScopeProposal[]
+  
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Requisition {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String          @db.ObjectId
+  user           User            @relation(fields: [userId], references: [id])
+  originalPrompt String
+  status         String          @default("AWAITING_SCOPE")
+  
+  scopeProposals ScopeProposal[]
+  artifacts      Artifact[]
+  
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model ScopeProposal {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  requisitionId  String       @db.ObjectId
+  requisition    Requisition  @relation(fields: [requisitionId], references: [id])
+  templateId     String       @db.ObjectId
+  template       Template     @relation(fields: [templateId], references: [id])
+  
+  contentMd      String
+  status         String       @default("PENDING")
+  userFeedback   String?
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Artifact {
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  requisitionId    String       @db.ObjectId
+  requisition      Requisition  @relation(fields: [requisitionId], references: [id])
+  templateId       String       @db.ObjectId
+  template         Template     @relation(fields: [templateId], references: [id])
+  
+  artifactType     String
+  fileName         String
+  generatedContent String?
+  status           String       @default("DRAFT")
+  iterationCount   Int          @default(0)
+  
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}

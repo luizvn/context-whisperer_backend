@@ -1,21 +1,34 @@
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: context-whisperer-db
+  mongodb:
+    image: mongo:8
+    container_name: context-whisperer-mongo
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: senha
-      POSTGRES_DB: context_whisperer
     ports:
-      - '5432:5432'
+      - '27017:27017'
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d context_whisperer']
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}) }" | mongosh --port 27017 --quiet
+      interval: 10s
+      timeout: 30s
+      start_period: 10s
+      retries: 5
+
+  redis:
+    image: redis:8.2-alpine
+    container_name: context-whisperer-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
-  postgres_data:
+  mongo_data:
+  redis_data:

@@ -1,0 +1,18 @@
+{
+  "name": "@context-whisperer/worker",
+  "version": "0.0.1",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "start:dev": "tsx watch src/main.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5.8.0",
+    "ioredis": "^5.4.1",
+    "@context-whisperer/core": "workspace:*",
+    "@context-whisperer/database": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
