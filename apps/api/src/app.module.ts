@@ -11,6 +11,7 @@ import { AgentsModule } from './modules/agents/agents.module';
 import { OpenAIModule } from './config/openai/openai.module';
 import { RequisitionsModule } from './modules/requisitions/requisitions.module';
 import { ScopeProposalsModule } from './modules/scope-proposals/scope-proposal.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ScopeProposalsModule } from './modules/scope-proposals/scope-proposal.m
     OpenAIModule,
     RequisitionsModule,
     ScopeProposalsModule,
+    EventsModule,
   ],
   controllers: [],
   providers: [],

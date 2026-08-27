@@ -1,6 +1,10 @@
-import { prisma } from '@context-whisperer/database';
-import { CreateProjectInput } from '@context-whisperer/core';
-import type IORedis from 'ioredis';
+import { prisma } from "@context-whisperer/database";
+import {
+  CreateProjectInput,
+  SseEventType,
+  SseEventMessage,
+} from "@context-whisperer/core";
+import type IORedis from "ioredis";
 
 export interface GenerationJobData {
   projectRequest: CreateProjectInput;
@@ -23,15 +27,30 @@ export async function processGenerationJob(
   // 1. Marca requisição como em geração
   await prisma.requisition.update({
     where: { id: requisitionId },
-    data: { status: 'GENERATING' },
+    data: { status: "GENERATING" },
   });
+
+  if (redisPublisher && userId) {
+    const startEvent: SseEventMessage = {
+      type: SseEventType.REQUISITION_STATUS_CHANGED,
+      userId,
+      requisitionId,
+      threadId,
+      timestamp: new Date().toISOString(),
+      data: { status: "GENERATING" },
+    };
+    await redisPublisher.publish(
+      `USER_EVENTS_${userId}`,
+      JSON.stringify(startEvent),
+    );
+  }
 
   const initialState = {
     projectRequest,
     messages: [],
     requisitionId,
     userId,
-    scopeProposalId: '',
+    scopeProposalId: "",
   };
 
   try {
@@ -46,8 +65,23 @@ export async function processGenerationJob(
     // Marca requisição como falha se der erro
     await prisma.requisition.update({
       where: { id: requisitionId },
-      data: { status: 'FAILED' },
+      data: { status: "FAILED" },
     });
+
+    if (redisPublisher && userId) {
+      const failEvent: SseEventMessage = {
+        type: SseEventType.WORKFLOW_FAILED,
+        userId,
+        requisitionId,
+        threadId,
+        timestamp: new Date().toISOString(),
+        data: { error: err instanceof Error ? err.message : "Unknown error" },
+      };
+      await redisPublisher.publish(
+        `USER_EVENTS_${userId}`,
+        JSON.stringify(failEvent),
+      );
+    }
 
     throw err;
   }

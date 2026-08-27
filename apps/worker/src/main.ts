@@ -1,14 +1,17 @@
 import "dotenv/config";
 import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
-import { buildGraph } from './workflows/agents/graph';
-import { prisma } from '@context-whisperer/database';
-import { GenerationJobData, processGenerationJob } from './processors/generation.processor';
+import { buildGraph } from "./workflows/agents/graph";
+import { prisma } from "@context-whisperer/database";
+import {
+  GenerationJobData,
+  processGenerationJob,
+} from "./processors/generation.processor";
 
 async function bootstrap() {
-  console.log('👷 Iniciando Worker do Context-Whisperer...');
+  console.log("👷 Iniciando Worker do Context-Whisperer...");
 
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
   const connection = new IORedis(redisUrl, {
     maxRetriesPerRequest: null,
   });
@@ -17,10 +20,10 @@ async function bootstrap() {
 
   // Inicializa o grafo do LangGraph com MongoDBSaver
   const graph = await buildGraph();
-  console.log('✅ LangGraph inicializado no Worker com MongoDB Checkpointer.');
+  console.log("✅ LangGraph inicializado no Worker com MongoDB Checkpointer.");
 
   const worker = new Worker<GenerationJobData>(
-    'ai-generation',
+    "ai-generation",
     async (job: Job<GenerationJobData>) => {
       console.log(`[Worker] Processando Job ${job.id}...`);
       const result = await processGenerationJob(job, graph, redisPublisher);
@@ -30,7 +33,7 @@ async function bootstrap() {
     { connection },
   );
 
-  worker.on('failed', (job, err) => {
+  worker.on("failed", (job, err) => {
     console.error(`🚨 Job ${job?.id} falhou com o erro: ${err.message}`);
   });
 

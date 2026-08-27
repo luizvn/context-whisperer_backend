@@ -92,6 +92,9 @@ importers:
       graphql:
         specifier: ^16.14.0
         version: 16.14.0
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.11.1(supports-color@8.1.1)
       langchain:
         specifier: ^1.4.4
         version: 1.4.4(@langchain/core@1.1.48(openai@6.41.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(openai@6.41.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0)

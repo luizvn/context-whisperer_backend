@@ -48,6 +48,7 @@
     "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
     "graphql": "^16.14.0",
+    "ioredis": "^5.4.1",
     "langchain": "^1.4.4",
     "mercurius": "^16.9.0",
     "openai": "^6.41.0",

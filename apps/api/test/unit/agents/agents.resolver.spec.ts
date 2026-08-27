@@ -63,14 +63,7 @@ describe('AgentsResolver', () => {
 
       mockExecuteWorkflow.mockResolvedValue(mockJobQueuedResponse);
 
-      const mockContext = {
-        pubsub: {
-          publish: jest.fn(),
-          subscribe: jest.fn(),
-        },
-      };
-
-      const result = await resolver.createProject(input, mockUser, mockContext);
+      const result = await resolver.createProject(input, mockUser);
 
       expect(mockExecuteWorkflow).toHaveBeenCalledWith(
         input,
@@ -78,25 +71,6 @@ describe('AgentsResolver', () => {
         mockUser,
       );
       expect(result).toEqual(mockJobQueuedResponse);
-    });
-  });
-
-  describe('agentEvents subscription resolver', () => {
-    it('should subscribe to user-specific topic via pubsub', async () => {
-      const mockSubscribe = jest
-        .fn()
-        .mockResolvedValue({} as AsyncIterableIterator<unknown>);
-      const mockContext = {
-        pubsub: {
-          publish: jest.fn(),
-          subscribe: mockSubscribe,
-        },
-      };
-
-      const result = await resolver.agentEvents('user-123', mockContext);
-
-      expect(mockSubscribe).toHaveBeenCalledWith('USER_EVENTS_user-123');
-      expect(result).toBeDefined();
     });
   });
 });

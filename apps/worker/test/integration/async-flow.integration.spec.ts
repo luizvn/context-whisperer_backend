@@ -139,12 +139,15 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
     expect(createdProposal?.contentMd).toContain('Full-Stack Analytics Dashboard with Next.js and Prisma');
     expect(createdProposal?.contentMd).toContain('Real-time metrics charts');
 
-    // C. Redis Pub/Sub published real-time event to user channel
-    expect(publishedEvents).toHaveLength(1);
+    // C. Redis Pub/Sub published real-time SSE events to user channel
+    expect(publishedEvents.length).toBeGreaterThanOrEqual(2);
     expect(publishedEvents[0].channel).toBe(`USER_EVENTS_${userId}`);
-    const parsedEvent = JSON.parse(publishedEvents[0].message);
-    expect(parsedEvent.type).toBe('SCOPE_GENERATED');
-    expect(parsedEvent.scopeGenerated.requisitionId).toBe(reqId);
-    expect(parsedEvent.scopeGenerated.id).toBe(result.scopeProposalId);
+    const startEvent = JSON.parse(publishedEvents[0].message);
+    expect(startEvent.type).toBe('REQUISITION_STATUS_CHANGED');
+
+    const scopeEvent = JSON.parse(publishedEvents[1].message);
+    expect(scopeEvent.type).toBe('SCOPE_READY');
+    expect(scopeEvent.requisitionId).toBe(reqId);
+    expect(scopeEvent.data.proposal.id).toBe(result.scopeProposalId);
   });
 });

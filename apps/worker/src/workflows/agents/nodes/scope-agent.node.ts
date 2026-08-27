@@ -5,6 +5,8 @@ import {
   ProposedScopeSchema,
   ProposedScopeResponse,
   GraphStateType,
+  SseEventType,
+  SseEventMessage,
 } from "@context-whisperer/core";
 import { prisma } from "@context-whisperer/database";
 import type IORedis from "ioredis";
@@ -88,15 +90,22 @@ ${state.projectRequest.prompt}
     data: { status: "AWAITING_SCOPE" },
   });
 
-  // Notifica via Redis PubSub para assinantes GraphQL
+  // Notifica via Redis PubSub para SSE
   if (redis && state.userId) {
-    const payload = JSON.stringify({
-      scopeGenerated: proposal,
+    const event: SseEventMessage = {
+      type: SseEventType.SCOPE_READY,
+      userId: state.userId,
+      requisitionId: state.requisitionId,
       threadId: threadId ?? undefined,
-      type: "SCOPE_GENERATED",
-    });
-    console.log(`[Worker PubSub] Publishing to USER_EVENTS_${state.userId}`);
-    await redis.publish(`USER_EVENTS_${state.userId}`, payload);
+      timestamp: new Date().toISOString(),
+      data: {
+        proposal,
+      },
+    };
+    console.log(
+      `[Worker SSE PubSub] Publishing SCOPE_READY to USER_EVENTS_${state.userId}`,
+    );
+    await redis.publish(`USER_EVENTS_${state.userId}`, JSON.stringify(event));
   }
 
   return {

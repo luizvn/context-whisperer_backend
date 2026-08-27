@@ -14,23 +14,6 @@ export class GraphqlConfigService implements GqlOptionsFactory {
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
       graphiql: !isProduction,
-      subscription: {
-        context: (
-          connection: {
-            _socket?: { server?: { graphql?: { pubsub?: unknown } } };
-          },
-          request: FastifyRequest,
-        ) => {
-          return {
-            request,
-            connection,
-
-            pubsub:
-              request?.server?.graphql?.pubsub ||
-              connection?._socket?.server?.graphql?.pubsub,
-          };
-        },
-      },
       context: (request: FastifyRequest, reply: unknown) => ({
         request,
         reply,

@@ -99,7 +99,7 @@ describe('scopeAgent node', () => {
     });
     expect(mockRedisPublish).toHaveBeenCalledWith(
       'USER_EVENTS_user-456',
-      expect.stringContaining('"type":"SCOPE_GENERATED"'),
+      expect.stringContaining('"type":"SCOPE_READY"'),
     );
     expect(result.scopeProposalId).toBe('prop-999');
     expect(result.messages).toHaveLength(1);

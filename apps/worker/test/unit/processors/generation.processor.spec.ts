@@ -13,7 +13,10 @@ jest.mock('@context-whisperer/database', () => ({
 }));
 
 describe('generation.processor', () => {
-  const mockRedis = {} as IORedis;
+  const mockPublish = jest.fn();
+  const mockRedis = {
+    publish: mockPublish,
+  } as unknown as IORedis;
 
   const mockJobData: GenerationJobData = {
     projectRequest: {

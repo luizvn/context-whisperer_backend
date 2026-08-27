@@ -1,10 +1,4 @@
-import {
-  Resolver,
-  Mutation,
-  Args,
-  Subscription,
-  Context,
-} from '@nestjs/graphql';
+import { Resolver, Mutation, Args } from '@nestjs/graphql';
 import { AgentsService } from './agents.service';
 import { CreateProjectInput, JobQueuedResponse } from '@context-whisperer/core';
 import { randomUUID } from 'crypto';
@@ -12,33 +6,6 @@ import { UseGuards } from '@nestjs/common';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserModel } from '../users/user.model';
-import { ScopeProposalModel } from '../scope-proposals/scope-proposal.model';
-
-interface AgentEventPayload {
-  scopeGenerated?: ScopeProposalModel;
-  threadId?: string;
-  type?: string;
-}
-
-interface MercuriusContext {
-  pubsub: {
-    publish: (params: { topic: string; payload: any }) => void;
-
-    subscribe: (topic: string) => Promise<AsyncIterableIterator<any>>;
-  };
-  reply?: {
-    pubsub: any;
-  };
-  connection?: {
-    server?: {
-      app?: {
-        graphql?: {
-          pubsub?: any;
-        };
-      };
-    };
-  };
-}
 
 @Resolver()
 export class AgentsResolver {
@@ -52,7 +19,6 @@ export class AgentsResolver {
   async createProject(
     @Args('input') input: CreateProjectInput,
     @CurrentUser() user: UserModel,
-    @Context() _context: MercuriusContext,
   ): Promise<JobQueuedResponse> {
     const threadId = randomUUID();
 
@@ -68,29 +34,5 @@ export class AgentsResolver {
     );
 
     return result;
-  }
-
-  @Subscription(() => ScopeProposalModel, {
-    nullable: true,
-    description:
-      'Recebe eventos de agentes para o usuário (via parâmetro livre)',
-    resolve: (payload: AgentEventPayload | undefined) => {
-      return payload?.scopeGenerated ?? null;
-    },
-  })
-  agentEvents(
-    @Args('userId') userId: string,
-    @Context() context: MercuriusContext,
-  ): Promise<AsyncIterableIterator<any>> {
-    console.log(
-      '[Subscription] Anonymous subscription created for USER_EVENTS_' + userId,
-    );
-
-    const pubSub =
-      context.pubsub ||
-      context.reply?.pubsub ||
-      context.connection?.server?.app?.graphql?.pubsub;
-
-    return pubSub.subscribe('USER_EVENTS_' + userId);
   }
 }
