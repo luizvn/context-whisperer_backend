@@ -94,19 +94,19 @@ Dado que haverá a necessidade de atuar diretamente em cima de um Artefato ou Pr
 
 ## 3. Plano de Tarefas (Checklist de Execução)
 
-- [ ] **Passo 1: Instalação e Configuração Básica**
-  - Atualizar o `docker-compose.yml` para remover o Postgres e subir o MongoDB (provavelmente um replica set simples, exigido pelo Prisma).
+- [x] **Passo 1: Instalação e Configuração Básica**
+  - Atualizar o `docker-compose.yml` para remover o Postgres e subir o MongoDB (com replica set simples exigido pelo Prisma).
   - Inicializar o Prisma (`npx prisma init`) na pasta `packages/database`.
-- [ ] **Passo 2: Definição e Remoção de Lixo**
+- [x] **Passo 2: Definição e Remoção de Lixo**
   - Configurar o `schema.prisma` conforme definido acima.
   - Remover os arquivos `.schema.ts` antigos do Drizzle e desinstalar pacotes SQL.
-- [ ] **Passo 3: Exportação do Banco**
+- [x] **Passo 3: Exportação do Banco**
   - Gerar o Prisma Client (`npx prisma generate`).
   - Exportar uma instância Singleton do PrismaClient no `packages/database/src/index.ts`.
-- [ ] **Passo 4: Padrão Repository e Refatoração (O Desafio Principal)**
-  - **Criação de Repositories:** Para cada módulo da API (Users, Requisitions, ScopeProposals, Artifacts, Templates), criar um arquivo `.repository.ts` (ex: `user.repository.ts`) que abstrairá o `PrismaClient`. Isso desacopla a regra de negócio (Service) da ferramenta de banco de dados (Prisma).
-  - O Drizzle usava sintaxe SQL-like (`eq(id, val)`). Nos Repositories, implementaremos os métodos padrão usando a sintaxe do Prisma (`findUnique({ where: { id: val } })`).
-  - Refatorar **todos os Services** (`user.service.ts`, `requisitions.service.ts`, etc.) para injetar e utilizar os Repositories recém-criados em vez de acessar o banco diretamente.
+- [x] **Passo 4: Padrão Repository e Refatoração**
+  - **Criação de Repositories:** Para cada módulo da API (Users, Requisitions, ScopeProposals, Artifacts, Templates), criado um arquivo `.repository.ts` abstraindo o `PrismaClient`.
+  - Implementados os métodos padrão usando a sintaxe do Prisma (`findUnique`, `create`, `update`).
+  - Refatorados todos os Services para injetar e utilizar os Repositories.
 
 ## 4. Próximos Passos
-*(Aguardando respostas do debate no chat)*
+- Implementar a suíte de testes unitários e de integração conforme planejado em [**`plano_testes.md`**](./plano_testes.md).

@@ -10,15 +10,15 @@ export interface GraphStateType {
   messages: BaseMessage[];
 }
 
-// Definição do estado global do seu LangGraph
-export const GraphState: any = Annotation.Root({
+export const GraphState = Annotation.Root({
   projectRequest: Annotation<CreateProjectInput>(),
   requisitionId: Annotation<string>(),
   userId: Annotation<string>(),
   scopeProposalId: Annotation<string>(),
 
   messages: Annotation<BaseMessage[]>({
-    reducer: (currentState, newMessages) => currentState.concat(newMessages),
+    reducer: (currentState: BaseMessage[], newMessages: BaseMessage[]) =>
+      currentState.concat(newMessages),
     default: () => [],
   }),
 });

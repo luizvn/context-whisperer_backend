@@ -1,1 +1,1 @@
-export * from './example.edge';
+export * from "./example.edge";

@@ -1,45 +1,33 @@
-import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
+import "dotenv/config";
+import { Worker, Job } from "bullmq";
+import IORedis from "ioredis";
 import { buildGraph } from './workflows/agents/graph';
+import { prisma } from '@context-whisperer/database';
+import { GenerationJobData, processGenerationJob } from './processors/generation.processor';
 
 async function bootstrap() {
   console.log('👷 Iniciando Worker do Context-Whisperer...');
 
-  const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const connection = new IORedis(redisUrl, {
     maxRetriesPerRequest: null,
   });
 
-  // Inicializa o grafo do LangGraph (pode envolver setup de DB)
+  const redisPublisher = new IORedis(redisUrl);
+
+  // Inicializa o grafo do LangGraph com MongoDBSaver
   const graph = await buildGraph();
-  console.log('✅ LangGraph inicializado no Worker.');
+  console.log('✅ LangGraph inicializado no Worker com MongoDB Checkpointer.');
 
-  const worker = new Worker(
+  const worker = new Worker<GenerationJobData>(
     'ai-generation',
-    async (job) => {
+    async (job: Job<GenerationJobData>) => {
       console.log(`[Worker] Processando Job ${job.id}...`);
-      const { projectRequest, requisitionId, userId, threadId } = job.data;
-
-      const initialState = {
-        projectRequest,
-        messages: [],
-        requisitionId,
-        userId,
-      };
-
-      try {
-        const result = await graph.invoke(initialState, {
-          configurable: {
-            thread_id: threadId,
-          },
-        });
-        console.log(`[Worker] Job ${job.id} concluído com sucesso!`);
-        return result;
-      } catch (err) {
-        console.error(`[Worker] Erro no Job ${job.id}:`, err);
-        throw err;
-      }
+      const result = await processGenerationJob(job, graph, redisPublisher);
+      console.log(`[Worker] Job ${job.id} concluído com sucesso!`);
+      return result;
     },
-    { connection }
+    { connection },
   );
 
   worker.on('failed', (job, err) => {
@@ -47,6 +35,23 @@ async function bootstrap() {
   });
 
   console.log('🎧 Worker escutando a fila "ai-generation"...');
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    console.log("🛑 Encerrando Worker...");
+    await worker.close();
+    await connection.quit();
+    await redisPublisher.quit();
+    await prisma.$disconnect();
+    process.exit(0);
+  };
+
+  process.on("SIGINT", () => {
+    void shutdown();
+  });
+  process.on("SIGTERM", () => {
+    void shutdown();
+  });
 }
 
 bootstrap().catch(console.error);

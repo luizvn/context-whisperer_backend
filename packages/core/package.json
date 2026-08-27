@@ -7,10 +7,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./langgraph": {
+      "types": "./dist/agents/langgraph/state.d.ts",
+      "default": "./dist/agents/langgraph/state.js"
     }
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "jest test/unit",
+    "test:unit": "jest test/unit",
+    "test:cov": "jest --coverage"
   },
   "dependencies": {
     "@langchain/core": "^1.1.48",
@@ -21,6 +28,26 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.2.5",
     "typescript": "^5.0.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": ".",
+    "testRegex": "test/.*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.(t|j)s"
+    ],
+    "coverageDirectory": "./coverage",
+    "testEnvironment": "node"
   }
 }

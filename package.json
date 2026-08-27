@@ -8,6 +8,8 @@
     "start:dev:worker": "pnpm --filter @context-whisperer/worker start:dev",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "test:integration": "pnpm -r run test:integration",
+    "test:all": "pnpm -r test && pnpm -r run test:integration",
     "db:generate": "pnpm --filter @context-whisperer/database run db:generate",
     "db:migrate": "pnpm --filter @context-whisperer/database run db:migrate",
     "db:push": "pnpm --filter @context-whisperer/database run db:push",
