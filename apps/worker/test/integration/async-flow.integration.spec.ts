@@ -43,6 +43,23 @@ jest.mock('@context-whisperer/database', () => ({
         return Promise.resolve(req);
       }),
     },
+    template: {
+      findUnique: jest.fn(({ where }: { where: { name: string } }) => {
+        if (where.name === 'default_scope_response') {
+          return Promise.resolve({
+            id: 'tmpl-response-001',
+            name: where.name,
+            content:
+              '# Proposta de Escopo\n\n## 🎯 Objetivo do Projeto\n{{projectGoal}}\n\n## ✅ Must Have (Indispensável)\n{{mustHave}}\n\n## 🚀 Should Have (Importante)\n{{shouldHave}}\n\n## ✨ Could Have (Desejável)\n{{couldHave}}\n\n## 🚫 Won\'t Have (Fora de Escopo)\n{{wontHave}}\n\n{{businessConstraints}}',
+          });
+        }
+        return Promise.resolve({
+          id: 'tmpl-default-001',
+          name: where.name,
+          content: 'Você é um Engenheiro de Requisitos Sênior rigoroso.',
+        });
+      }),
+    },
     scopeProposal: {
       create: jest.fn(({ data }: { data: { requisitionId: string; templateId: string; contentMd: string; status: string } }) => {
         const id = `prop-${Date.now()}`;

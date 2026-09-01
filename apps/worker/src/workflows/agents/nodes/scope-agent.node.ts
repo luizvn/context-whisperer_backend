@@ -11,34 +11,30 @@ import {
 import { prisma } from "@context-whisperer/database";
 import type IORedis from "ioredis";
 
-function buildMarkdownFromScopeResponse(data: ProposedScopeResponse): string {
-  let md = `# Proposta de Escopo\n\n`;
+function buildMarkdownFromScopeResponse(
+  data: ProposedScopeResponse,
+  templateContent: string,
+): string {
+  const formatList = (items?: string[]): string => {
+    if (!items || items.length === 0) return "_Nenhum item definido._";
+    return items.map((item) => `- ${item}`).join("\n");
+  };
 
-  md += `## 🎯 Objetivo do Projeto\n${data.projectGoal}\n\n`;
-
-  md += `## ✅ Must Have (Indispensável)\n`;
-  data.mustHave.forEach((item) => (md += `- ${item}\n`));
-  md += `\n`;
-
-  md += `## 🚀 Should Have (Importante)\n`;
-  data.shouldHave.forEach((item) => (md += `- ${item}\n`));
-  md += `\n`;
-
-  md += `## ✨ Could Have (Desejável)\n`;
-  data.couldHave.forEach((item) => (md += `- ${item}\n`));
-  md += `\n`;
-
-  md += `## 🚫 Won't Have (Fora de Escopo)\n`;
-  data.wontHave.forEach((item) => (md += `- ${item}\n`));
-  md += `\n`;
-
+  let constraintsSection = "";
   if (data.businessConstraints && data.businessConstraints.length > 0) {
-    md += `## ⚠️ Restrições de Negócio\n`;
-    data.businessConstraints.forEach((item) => (md += `- ${item}\n`));
-    md += `\n`;
+    constraintsSection = `## ⚠️ Restrições de Negócio\n${formatList(data.businessConstraints)}\n`;
   }
 
-  return md;
+  return (
+    templateContent
+      .replace("{{projectGoal}}", data.projectGoal || "")
+      .replace("{{mustHave}}", formatList(data.mustHave))
+      .replace("{{shouldHave}}", formatList(data.shouldHave))
+      .replace("{{couldHave}}", formatList(data.couldHave))
+      .replace("{{wontHave}}", formatList(data.wontHave))
+      .replace("{{businessConstraints}}", constraintsSection)
+      .trim() + "\n"
+  );
 }
 
 export const scopeAgent = async (
@@ -56,29 +52,46 @@ export const scopeAgent = async (
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const structuredLlm = model.withStructuredOutput(ProposedScopeSchema);
+  // 1. Busca os templates cadastrados no banco de dados (sem fallback, erro sobe diretamente)
+  const promptTemplate = await prisma.template.findUnique({
+    where: { name: "default_scope" },
+  });
 
-  const prompt = `Você é um Engenheiro de Requisitos Sênior rigoroso. 
-Sua missão é transformar ideias em especificações de MVP bem delimitadas. 
-Aplique a técnica MoSCoW. Rejeite funcionalidades supérfluas. 
-Retorne EXCLUSIVAMENTE um JSON estruturado contendo 
-o objetivo principal, uma lista de no máximo 5 funcionalidades de cada 
-categoria (Must Have, Should Have, Could Have e Won't Have) 
-e as restrições do negócio.
+  if (!promptTemplate) {
+    throw new Error(
+      "Template 'default_scope' não encontrado no banco de dados.",
+    );
+  }
+
+  const responseTemplate = await prisma.template.findUnique({
+    where: { name: "default_scope_response" },
+  });
+
+  if (!responseTemplate) {
+    throw new Error(
+      "Template 'default_scope_response' não encontrado no banco de dados.",
+    );
+  }
+
+  const prompt = `${promptTemplate.content}
 
 Prompt do usuário:
 ${state.projectRequest.prompt}
 `;
 
+  const structuredLlm = model.withStructuredOutput(ProposedScopeSchema);
   const response = await structuredLlm.invoke(prompt);
 
-  const markdown = buildMarkdownFromScopeResponse(response);
+  const markdown = buildMarkdownFromScopeResponse(
+    response,
+    responseTemplate.content,
+  );
 
-  // Persiste a proposta gerada no MongoDB
+  // Persiste a proposta gerada no MongoDB vinculada ao template de resposta
   const proposal = await prisma.scopeProposal.create({
     data: {
       requisitionId: state.requisitionId,
-      templateId: "default",
+      templateId: responseTemplate.id,
       contentMd: markdown,
       status: "PENDING",
     },

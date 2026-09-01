@@ -12,8 +12,9 @@ Este diretório centraliza o histórico de decisões técnicas, a especificaçã
 | :--- | :--- | :--- |
 | 📦 [**`arquitetura_monorepo.md`**](./arquitetura_monorepo.md) | Detalhamento da refatoração para Monorepo PNPM, camadas (`apps/`, `packages/`), separação de responsabilidades e convenções de código (`*Model`, Repositories). | **Concluído / Atualizado** |
 | 🗄️ [**`migracao_mongodb_prisma.md`**](./migracao_mongodb_prisma.md) | Planejamento e histórico da transição do PostgreSQL + Drizzle para MongoDB + Prisma com Repository Pattern. | **Concluído** |
-| 🧪 [**`plano_testes.md`**](./plano_testes.md) | Estratégia completa com 100% das 5 fases de testes unitários e de integração concluídas. | **Concluído (73 testes)** |
-| 📡 [**`planejamento_sse_human_in_the_loop.md`**](./planejamento_sse_human_in_the_loop.md) | Arquitetura de notificações via Server-Sent Events (SSE) e ciclo de aprovação/recusa de escopo (HITL). | **Planejamento Criado** |
+| 🧪 [**`plano_testes.md`**](./plano_testes.md) | Estratégia completa com 100% das 5 fases de testes unitários e de integração concluídas. | **Concluído (82 testes)** |
+| 📡 [**`planejamento_sse_human_in_the_loop.md`**](./planejamento_sse_human_in_the_loop.md) | Arquitetura de notificações via Server-Sent Events (SSE) e ciclo de aprovação/recusa de escopo (HITL). | **Concluído** |
+| 📝 [**`planejamento_templates_prompts.md`**](./planejamento_templates_prompts.md) | Gestão de Templates de Prompt e Resposta via Seed/Banco (Append-Only) com seleção automática pelo backend. | **Planejado / Em Execução** |
 
 ---
 

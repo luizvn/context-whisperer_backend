@@ -14,7 +14,7 @@ enum ArtifactType {
 
 type AuthResponse {
   accessToken: String!
-  user: User!
+  user: UserModel!
 }
 
 input CreateProjectInput {
@@ -41,18 +41,31 @@ input LoginInput {
 
 type Mutation {
   """
+  Aprova uma proposta de escopo e sinaliza para prosseguir a geração de artefatos
+  """
+  approveScopeProposal(id: String!): ScopeProposalModel!
+
+  """
   Inicia o fluxo de criação de um novo projeto via LangGraph inserindo na fila
   """
   createProject(input: CreateProjectInput!): JobQueuedResponse!
   login(loginInput: LoginInput!): AuthResponse!
+
+  """
+  Recusa uma proposta de escopo e envia o feedback do usuário para refinamento
+  """
+  rejectScopeProposal(feedback: String!, id: String!): ScopeProposalModel!
   signup(signupInput: SignupInput!): AuthResponse!
 }
 
 type Query {
-  me: User!
+  me: UserModel!
+
+  """Busca uma proposta de escopo pelo ID"""
+  scopeProposal(id: String!): ScopeProposalModel!
 }
 
-type ScopeProposal {
+type ScopeProposalModel {
   contentMd: String!
   createdAt: DateTime!
   id: ID!
@@ -73,12 +86,7 @@ input SignupInput {
   password: String!
 }
 
-type Subscription {
-  """Recebe eventos de agentes para o usuário (via parâmetro livre)"""
-  agentEvents(userId: String!): ScopeProposal
-}
-
-type User {
+type UserModel {
   createdAt: DateTime!
   email: String!
   id: ID!

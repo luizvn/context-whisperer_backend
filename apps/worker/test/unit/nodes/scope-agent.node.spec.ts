@@ -14,11 +14,15 @@ jest.mock('@langchain/openai', () => ({
   })),
 }));
 
+const mockTemplateFindUnique = jest.fn();
 const mockScopeProposalCreate = jest.fn();
 const mockRequisitionUpdate = jest.fn();
 
 jest.mock('@context-whisperer/database', () => ({
   prisma: {
+    template: {
+      findUnique: (...args: unknown[]) => Promise.resolve(mockTemplateFindUnique(...args)),
+    },
     scopeProposal: {
       create: (...args: unknown[]) => Promise.resolve(mockScopeProposalCreate(...args)),
     },
@@ -62,10 +66,28 @@ describe('scopeAgent node', () => {
     businessConstraints: ['Budget under $50/mo for OpenAI', 'Max 2s response time'],
   };
 
+  const mockPromptTemplate = {
+    id: 'tmpl-prompt-001',
+    name: 'default_scope',
+    description: 'Template de Prompt MoSCoW',
+    content: 'Você é um Engenheiro de Requisitos Sênior rigoroso.',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockResponseTemplate = {
+    id: 'tmpl-response-002',
+    name: 'default_scope_response',
+    description: 'Template de Resposta MoSCoW',
+    content: `# Proposta de Escopo\n\n## 🎯 Objetivo do Projeto\n{{projectGoal}}\n\n## ✅ Must Have (Indispensável)\n{{mustHave}}\n\n## 🚀 Should Have (Importante)\n{{shouldHave}}\n\n## ✨ Could Have (Desejável)\n{{couldHave}}\n\n## 🚫 Won't Have (Fora de Escopo)\n{{wontHave}}\n\n{{businessConstraints}}`,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
   const mockCreatedProposal = {
     id: 'prop-999',
     requisitionId: 'req-123',
-    templateId: 'default',
+    templateId: 'tmpl-response-002',
     contentMd: '# Proposta de Escopo',
     status: 'PENDING',
     createdAt: new Date(),
@@ -74,9 +96,14 @@ describe('scopeAgent node', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTemplateFindUnique.mockImplementation(({ where }: { where: { name: string } }) => {
+      if (where.name === 'default_scope') return Promise.resolve(mockPromptTemplate);
+      if (where.name === 'default_scope_response') return Promise.resolve(mockResponseTemplate);
+      return Promise.resolve(null);
+    });
   });
 
-  it('should call structured LLM, persist proposal, update requisition and publish to Redis', async () => {
+  it('should fetch prompt and response templates from DB, invoke LLM, format markdown with response template and persist proposal', async () => {
     mockInvoke.mockResolvedValue(mockLlmResponse);
     mockScopeProposalCreate.mockResolvedValue(mockCreatedProposal);
     mockRequisitionUpdate.mockResolvedValue({ id: 'req-123', status: 'AWAITING_SCOPE' });
@@ -84,11 +111,13 @@ describe('scopeAgent node', () => {
 
     const result = await scopeAgent(mockState, mockConfig);
 
-    expect(mockInvoke).toHaveBeenCalled();
+    expect(mockTemplateFindUnique).toHaveBeenCalledWith({ where: { name: 'default_scope' } });
+    expect(mockTemplateFindUnique).toHaveBeenCalledWith({ where: { name: 'default_scope_response' } });
+    expect(mockInvoke).toHaveBeenCalledWith(expect.stringContaining('Você é um Engenheiro de Requisitos Sênior rigoroso.'));
     expect(mockScopeProposalCreate).toHaveBeenCalledWith({
       data: {
         requisitionId: 'req-123',
-        templateId: 'default',
+        templateId: 'tmpl-response-002',
         contentMd: expect.stringContaining('## 🎯 Objetivo do Projeto\nBuild an AI-powered Task Manager'),
         status: 'PENDING',
       },
@@ -106,22 +135,27 @@ describe('scopeAgent node', () => {
     expect(result.messages?.[0].content).toContain('Escopo gerado com sucesso');
   });
 
-  it('should work cleanly even when redis publisher is not passed in config', async () => {
-    mockInvoke.mockResolvedValue(mockLlmResponse);
-    mockScopeProposalCreate.mockResolvedValue(mockCreatedProposal);
-    mockRequisitionUpdate.mockResolvedValue({ id: 'req-123', status: 'AWAITING_SCOPE' });
+  it('should throw error without fallback if prompt template default_scope is not found in database', async () => {
+    mockTemplateFindUnique.mockImplementation(({ where }: { where: { name: string } }) => {
+      if (where.name === 'default_scope') return Promise.resolve(null);
+      return Promise.resolve(mockResponseTemplate);
+    });
 
-    const configWithoutRedis: RunnableConfig = {
-      configurable: {
-        thread_id: 'thread-789',
-      },
-    };
+    await expect(scopeAgent(mockState, mockConfig)).rejects.toThrow(
+      "Template 'default_scope' não encontrado no banco de dados.",
+    );
+    expect(mockScopeProposalCreate).not.toHaveBeenCalled();
+  });
 
-    const result = await scopeAgent(mockState, configWithoutRedis);
+  it('should throw error without fallback if response template default_scope_response is not found in database', async () => {
+    mockTemplateFindUnique.mockImplementation(({ where }: { where: { name: string } }) => {
+      if (where.name === 'default_scope') return Promise.resolve(mockPromptTemplate);
+      return Promise.resolve(null);
+    });
 
-    expect(mockScopeProposalCreate).toHaveBeenCalled();
-    expect(mockRequisitionUpdate).toHaveBeenCalled();
-    expect(mockRedisPublish).not.toHaveBeenCalled();
-    expect(result.scopeProposalId).toBe('prop-999');
+    await expect(scopeAgent(mockState, mockConfig)).rejects.toThrow(
+      "Template 'default_scope_response' não encontrado no banco de dados.",
+    );
+    expect(mockScopeProposalCreate).not.toHaveBeenCalled();
   });
 });

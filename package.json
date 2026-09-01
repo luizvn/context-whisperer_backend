@@ -13,6 +13,7 @@
     "db:generate": "pnpm --filter @context-whisperer/database run db:generate",
     "db:migrate": "pnpm --filter @context-whisperer/database run db:migrate",
     "db:push": "pnpm --filter @context-whisperer/database run db:push",
+    "db:seed": "pnpm --filter @context-whisperer/database run db:seed",
     "db:studio": "pnpm --filter @context-whisperer/database run db:studio"
   },
   "devDependencies": {
