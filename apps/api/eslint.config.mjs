@@ -31,12 +31,13 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-argument': 'warn',
       "prettier/prettier": ["error", { endOfLine: "auto" }],
       '@typescript-eslint/no-unused-vars': [
-      'error',
-      { 
-        'argsIgnorePattern': '^_',
-        'varsIgnorePattern': '^_'
-      }
-    ],
+        'error',
+        { 
+          'argsIgnorePattern': '^_',
+          'varsIgnorePattern': '^_'
+        }
+      ],
+      'no-console': 'error',
     },
   },
 );

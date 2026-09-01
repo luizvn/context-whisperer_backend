@@ -10,6 +10,7 @@ import {
 } from "@context-whisperer/core";
 import { prisma } from "@context-whisperer/database";
 import type IORedis from "ioredis";
+import { logger } from "../../../utils/logger";
 
 function buildMarkdownFromScopeResponse(
   data: ProposedScopeResponse,
@@ -41,10 +42,14 @@ export const scopeAgent = async (
   state: GraphStateType,
   config: RunnableConfig,
 ): Promise<Partial<GraphStateType>> => {
-  console.log("--- [ScopeAgent] Executing Scope Generation ---");
   const configurable = config?.configurable;
   const redis = configurable?.redis as IORedis | undefined;
   const threadId = configurable?.thread_id as string | undefined;
+
+  logger.debug(
+    { requisitionId: state.requisitionId, threadId },
+    "Executing scope generation node",
+  );
 
   const model = new ChatOpenAI({
     modelName: process.env.OPENAI_MODEL || "gpt-4o",
@@ -115,8 +120,14 @@ ${state.projectRequest.prompt}
         proposal,
       },
     };
-    console.log(
-      `[Worker SSE PubSub] Publishing SCOPE_READY to USER_EVENTS_${state.userId}`,
+    logger.info(
+      {
+        channel: `USER_EVENTS_${state.userId}`,
+        eventType: SseEventType.SCOPE_READY,
+        requisitionId: state.requisitionId,
+        userId: state.userId,
+      },
+      "Published SCOPE_READY user event to Redis",
     );
     await redis.publish(`USER_EVENTS_${state.userId}`, JSON.stringify(event));
   }

@@ -8,8 +8,10 @@ import {
   processGenerationJob,
 } from "./processors/generation.processor";
 
+import { logger } from "./utils/logger";
+
 async function bootstrap() {
-  console.log("👷 Iniciando Worker do Context-Whisperer...");
+  logger.info("Context-Whisperer Worker service initializing");
 
   const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
   const connection = new IORedis(redisUrl, {
@@ -18,30 +20,45 @@ async function bootstrap() {
 
   const redisPublisher = new IORedis(redisUrl);
 
-  // Inicializa o grafo do LangGraph com MongoDBSaver
+  // Initialize LangGraph with MongoDB Checkpointer
   const graph = await buildGraph();
-  console.log("✅ LangGraph inicializado no Worker com MongoDB Checkpointer.");
+  logger.info("LangGraph workflow initialized with MongoDB checkpointer");
 
   const worker = new Worker<GenerationJobData>(
     "ai-generation",
     async (job: Job<GenerationJobData>) => {
-      console.log(`[Worker] Processando Job ${job.id}...`);
+      const jobLogger = logger.child({
+        jobId: job.id,
+        requisitionId: job.data.requisitionId,
+        threadId: job.data.threadId,
+      });
+
+      jobLogger.info("Processing generation job");
+      const startTime = Date.now();
       const result = await processGenerationJob(job, graph, redisPublisher);
-      console.log(`[Worker] Job ${job.id} concluído com sucesso!`);
+      const durationMs = Date.now() - startTime;
+      jobLogger.info({ durationMs }, "Generation job completed successfully");
       return result;
     },
     { connection },
   );
 
   worker.on("failed", (job, err) => {
-    console.error(`🚨 Job ${job?.id} falhou com o erro: ${err.message}`);
+    logger.error(
+      {
+        jobId: job?.id,
+        requisitionId: job?.data.requisitionId,
+        err: err.message,
+      },
+      "Generation job execution failed",
+    );
   });
 
-  console.log('🎧 Worker escutando a fila "ai-generation"...');
+  logger.info({ queue: "ai-generation" }, "Worker listening to queue");
 
   // Graceful shutdown
   const shutdown = async () => {
-    console.log("🛑 Encerrando Worker...");
+    logger.info("Shutting down worker service");
     await worker.close();
     await connection.quit();
     await redisPublisher.quit();
@@ -57,4 +74,7 @@ async function bootstrap() {
   });
 }
 
-bootstrap().catch(console.error);
+bootstrap().catch((err: unknown) => {
+  logger.fatal({ err }, "Worker bootstrap encountered fatal error");
+  process.exit(1);
+});

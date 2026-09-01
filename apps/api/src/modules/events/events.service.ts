@@ -3,6 +3,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
   MessageEvent,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SseEventMessage, SseEventType } from '@context-whisperer/core';
@@ -12,6 +13,7 @@ import { map, finalize, filter } from 'rxjs/operators';
 
 @Injectable()
 export class EventsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(EventsService.name);
   private redisSubscriber!: IORedis;
   private redisPublisher!: IORedis;
   private eventSubject = new Subject<{
@@ -41,9 +43,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
           const parsed = JSON.parse(rawMessage) as SseEventMessage;
           this.eventSubject.next({ channel, message: parsed });
         } catch (err) {
-          console.error(
-            `[EventsService] Erro ao parsear mensagem do canal ${channel}:`,
-            err,
+          this.logger.error(
+            `Failed to parse message from channel ${channel}`,
+            err instanceof Error ? err.stack : String(err),
           );
         }
       },

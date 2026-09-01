@@ -6,13 +6,19 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 
+import { Logger } from 'nestjs-pino';
+
 async function bootstrap() {
   const adapter = new FastifyAdapter();
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     adapter,
+    { bufferLogs: true },
   );
+
+  const logger = app.get(Logger);
+  app.useLogger(logger);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -24,14 +30,12 @@ async function bootstrap() {
 
   app.enableCors();
 
+  const port = Number(process.env.PORT || 3000);
   await app.listen({
-    port: Number(process.env.PORT || 3000),
+    port,
     host: '0.0.0.0',
   });
 
-  console.log(`Server listening on ${process.env.PORT || 3000}`);
-
-  // const port = process.env.PORT ?? 3000;
-  // await app.listen(port);
+  logger.log(`Server listening on port ${port}`, 'Bootstrap');
 }
 void bootstrap();
