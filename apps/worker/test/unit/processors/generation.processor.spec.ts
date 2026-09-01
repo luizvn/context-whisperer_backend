@@ -96,5 +96,10 @@ describe('generation.processor', () => {
       where: { id: 'req-proc-123' },
       data: { status: 'FAILED' },
     });
+
+    expect(mockRedis.publish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-proc-456',
+      expect.stringContaining('"type":"WORKFLOW_FAILED"'),
+    );
   });
 });

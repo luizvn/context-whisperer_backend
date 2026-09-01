@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ProposedScopeResponse } from '@context-whisperer/core';
 import {
   ScopeProposalModel,
   ScopeProposalStatus,
 } from './scope-proposal.model';
 import { ScopeProposalRepository } from './scope-proposal.repository';
+import { EntityNotFoundException } from '../../common/exceptions';
 
 @Injectable()
 export class ScopeProposalService {
@@ -16,7 +17,7 @@ export class ScopeProposalService {
     const proposal = await this.scopeProposalRepository.findById(id);
 
     if (!proposal) {
-      throw new NotFoundException(`Scope proposal with ID ${id} not found`);
+      throw new EntityNotFoundException('Scope proposal', id);
     }
 
     return proposal;

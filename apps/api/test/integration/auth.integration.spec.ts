@@ -256,6 +256,6 @@ describe('Auth & Users GraphQL Integration Test (Fastify + Mercurius)', () => {
     };
 
     expect(body.errors).toBeDefined();
-    expect(body.errors?.[0].message).toContain('Credenciais inválidas');
+    expect(body.errors?.[0].message).toContain('Invalid email or password');
   });
 });

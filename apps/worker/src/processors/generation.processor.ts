@@ -3,8 +3,10 @@ import {
   CreateProjectInput,
   SseEventType,
   SseEventMessage,
+  WorkflowFailedEventData,
 } from "@context-whisperer/core";
 import type IORedis from "ioredis";
+import { handleWorkerError } from "../utils/error-handler";
 
 export interface GenerationJobData {
   projectRequest: CreateProjectInput;
@@ -68,14 +70,21 @@ export async function processGenerationJob(
       data: { status: "FAILED" },
     });
 
+    // Sanitiza o erro com fallback 500 por padrão e registra log estruturado via Pino
+    const errorData = handleWorkerError(err, {
+      jobId: job.id,
+      requisitionId,
+      threadId,
+    });
+
     if (redisPublisher && userId) {
-      const failEvent: SseEventMessage = {
+      const failEvent: SseEventMessage<WorkflowFailedEventData> = {
         type: SseEventType.WORKFLOW_FAILED,
         userId,
         requisitionId,
         threadId,
         timestamp: new Date().toISOString(),
-        data: { error: err instanceof Error ? err.message : "Unknown error" },
+        data: errorData,
       };
       await redisPublisher.publish(
         `USER_EVENTS_${userId}`,

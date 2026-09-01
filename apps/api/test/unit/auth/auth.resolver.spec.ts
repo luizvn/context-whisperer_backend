@@ -11,6 +11,7 @@ describe('AuthResolver', () => {
   let resolver: AuthResolver;
 
   const mockValidateUser = jest.fn();
+  const mockAuthenticate = jest.fn();
   const mockLogin = jest.fn();
   const mockCreateUser = jest.fn();
 
@@ -40,6 +41,7 @@ describe('AuthResolver', () => {
   beforeEach(async () => {
     const mockAuthService = {
       validateUser: mockValidateUser,
+      authenticate: mockAuthenticate,
       login: mockLogin,
     };
 
@@ -74,7 +76,7 @@ describe('AuthResolver', () => {
 
   describe('login', () => {
     it('should validate user credentials and return AuthResponse', async () => {
-      mockValidateUser.mockResolvedValue(mockUserModel);
+      mockAuthenticate.mockResolvedValue(mockUserModel);
       mockLogin.mockReturnValue(mockAuthResponse);
 
       const result = await resolver.login({
@@ -82,7 +84,7 @@ describe('AuthResolver', () => {
         password: 'password123',
       });
 
-      expect(mockValidateUser).toHaveBeenCalledWith(
+      expect(mockAuthenticate).toHaveBeenCalledWith(
         'charlie@example.com',
         'password123',
       );
@@ -90,8 +92,10 @@ describe('AuthResolver', () => {
       expect(result).toEqual(mockAuthResponse);
     });
 
-    it('should throw UnauthorizedException when credentials are invalid', async () => {
-      mockValidateUser.mockResolvedValue(null);
+    it('should let InvalidCredentialsException bubble up when credentials are invalid', async () => {
+      mockAuthenticate.mockRejectedValue(
+        new UnauthorizedException('Invalid email or password'),
+      );
 
       await expect(
         resolver.login({
@@ -100,7 +104,7 @@ describe('AuthResolver', () => {
         }),
       ).rejects.toThrow(UnauthorizedException);
 
-      expect(mockValidateUser).toHaveBeenCalledWith(
+      expect(mockAuthenticate).toHaveBeenCalledWith(
         'charlie@example.com',
         'wrong_password',
       );

@@ -1,5 +1,4 @@
 import { Resolver, Mutation, Args } from '@nestjs/graphql';
-import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/user.service';
 import { AuthResponse } from './dto/auth.response';
@@ -17,13 +16,10 @@ export class AuthResolver {
   async login(
     @Args('loginInput') loginInput: LoginInput,
   ): Promise<AuthResponse> {
-    const user = await this.authService.validateUser(
+    const user = await this.authService.authenticate(
       loginInput.email,
       loginInput.password,
     );
-    if (!user) {
-      throw new UnauthorizedException('Credenciais inválidas');
-    }
     return this.authService.login(user);
   }
 

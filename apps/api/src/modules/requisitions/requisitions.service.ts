@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { RequisitionModel, RequisitionStatus } from './requisition.model';
 import { RequisitionRepository } from './requisition.repository';
+import { EntityNotFoundException } from '../../common/exceptions';
 
 @Injectable()
 export class RequisitionsService {
@@ -10,7 +11,7 @@ export class RequisitionsService {
     const requisition = await this.requisitionRepository.findById(id);
 
     if (!requisition) {
-      throw new NotFoundException(`Requisition with ID ${id} not found`);
+      throw new EntityNotFoundException('Requisition', id);
     }
 
     return requisition;
@@ -34,7 +35,7 @@ export class RequisitionsService {
     try {
       return await this.requisitionRepository.updateStatus(id, status);
     } catch {
-      throw new NotFoundException(`Requisition with ID ${id} not found`);
+      throw new EntityNotFoundException('Requisition', id);
     }
   }
 }

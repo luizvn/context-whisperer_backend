@@ -1,7 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { User } from '@context-whisperer/database';
 import { UserRepository } from './user.repository';
 import * as bcrypt from 'bcrypt';
+import { UserAlreadyExistsException } from '../../common/exceptions';
 
 @Injectable()
 export class UsersService {
@@ -23,7 +24,7 @@ export class UsersService {
   }): Promise<User> {
     const existingUser = await this.findByEmail(data.email);
     if (existingUser) {
-      throw new ConflictException('E-mail já cadastrado');
+      throw new UserAlreadyExistsException();
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);

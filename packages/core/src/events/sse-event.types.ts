@@ -18,3 +18,10 @@ export interface SseEventMessage<T = unknown> {
   timestamp: string;
   data: T;
 }
+
+export interface WorkflowFailedEventData {
+  statusCode: number;
+  code: string;
+  message: string;
+}
+

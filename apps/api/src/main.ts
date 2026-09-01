@@ -7,6 +7,7 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { Logger } from 'nestjs-pino';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter();
@@ -19,6 +20,7 @@ async function bootstrap() {
 
   const logger = app.get(Logger);
   app.useLogger(logger);
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({
