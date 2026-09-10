@@ -102,4 +102,83 @@ describe('generation.processor', () => {
       expect.stringContaining('"type":"WORKFLOW_FAILED"'),
     );
   });
+
+  it('should handle action APPROVE by updating graph state and resuming graph invocation', async () => {
+    const approveJob = {
+      id: 'job-approve-1',
+      data: {
+        requisitionId: 'req-proc-123',
+        userId: 'user-proc-456',
+        threadId: 'thread-proc-789',
+        action: 'APPROVE' as const,
+      },
+    };
+
+    const mockUpdateState = jest.fn().mockResolvedValue(undefined);
+    const mockInvoke = jest.fn().mockResolvedValue({ status: 'COMPLETED' });
+
+    const mockGraph: GraphRunner = {
+      invoke: mockInvoke,
+      updateState: mockUpdateState,
+    };
+
+    const result = await processGenerationJob(approveJob, mockGraph, mockRedis);
+
+    expect(mockUpdateState).toHaveBeenCalledWith(
+      { configurable: { thread_id: 'thread-proc-789' } },
+      { scopeApproved: true },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(null, {
+      configurable: {
+        thread_id: 'thread-proc-789',
+        redis: mockRedis,
+      },
+    });
+    expect(result).toEqual({ status: 'COMPLETED' });
+  });
+
+  it('should handle action REJECT by updating requisition to GENERATING, updating state with feedback and resuming graph', async () => {
+    mockRequisitionUpdate.mockResolvedValue({ id: 'req-proc-123', status: 'GENERATING' });
+
+    const rejectJob = {
+      id: 'job-reject-1',
+      data: {
+        requisitionId: 'req-proc-123',
+        userId: 'user-proc-456',
+        threadId: 'thread-proc-789',
+        action: 'REJECT' as const,
+        feedback: 'Please simplify the scope to MVP only',
+      },
+    };
+
+    const mockUpdateState = jest.fn().mockResolvedValue(undefined);
+    const mockInvoke = jest.fn().mockResolvedValue({ scopeProposalId: 'prop-new' });
+
+    const mockGraph: GraphRunner = {
+      invoke: mockInvoke,
+      updateState: mockUpdateState,
+    };
+
+    const result = await processGenerationJob(rejectJob, mockGraph, mockRedis);
+
+    expect(mockRequisitionUpdate).toHaveBeenCalledWith({
+      where: { id: 'req-proc-123' },
+      data: { status: 'GENERATING' },
+    });
+    expect(mockPublish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-proc-456',
+      expect.stringContaining('"type":"REQUISITION_STATUS_CHANGED"'),
+    );
+    expect(mockUpdateState).toHaveBeenCalledWith(
+      { configurable: { thread_id: 'thread-proc-789' } },
+      { scopeApproved: false, userFeedback: 'Please simplify the scope to MVP only' },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(null, {
+      configurable: {
+        thread_id: 'thread-proc-789',
+        redis: mockRedis,
+      },
+    });
+    expect(result).toEqual({ scopeProposalId: 'prop-new' });
+  });
 });

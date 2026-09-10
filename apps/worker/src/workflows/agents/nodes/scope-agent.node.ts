@@ -7,6 +7,7 @@ import {
   GraphStateType,
   SseEventType,
   SseEventMessage,
+  TemplateNotFoundException,
 } from "@context-whisperer/core";
 import { prisma } from "@context-whisperer/database";
 import type IORedis from "ioredis";
@@ -63,9 +64,7 @@ export const scopeAgent = async (
   });
 
   if (!promptTemplate) {
-    throw new Error(
-      "Template 'default_scope' não encontrado no banco de dados.",
-    );
+    throw new TemplateNotFoundException("default_scope");
   }
 
   const responseTemplate = await prisma.template.findUnique({
@@ -73,16 +72,25 @@ export const scopeAgent = async (
   });
 
   if (!responseTemplate) {
-    throw new Error(
-      "Template 'default_scope_response' não encontrado no banco de dados.",
-    );
+    throw new TemplateNotFoundException("default_scope_response");
   }
 
-  const prompt = `${promptTemplate.content}
+  let prompt = `${promptTemplate.content}
 
 Prompt do usuário:
 ${state.projectRequest.prompt}
 `;
+
+  if (state.userFeedback) {
+    prompt += `
+
+ATENÇÃO - REFINAMENTO DE ESCOPO COM FEEDBACK DO USUÁRIO:
+O usuário revisou a proposta anterior e enviou o seguinte feedback para ajustes:
+"${state.userFeedback}"
+
+Por favor, incorpore integralmente as correções e ajustes solicitados pelo usuário nesta nova proposta de escopo.
+`;
+  }
 
   const structuredLlm = model.withStructuredOutput(ProposedScopeSchema);
   const response = await structuredLlm.invoke(prompt);
@@ -135,9 +143,11 @@ ${state.projectRequest.prompt}
   return {
     messages: [
       new AIMessage({
-        content: `Escopo gerado com sucesso para: ${response.projectGoal || "Projeto"}`,
+        content: `Escopo ${state.userFeedback ? "refinado" : "gerado"} com sucesso para: ${response.projectGoal || "Projeto"}`,
       }),
     ],
     scopeProposalId: proposal.id,
+    userFeedback: undefined,
+    scopeApproved: undefined,
   };
 };

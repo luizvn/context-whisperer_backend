@@ -38,6 +38,7 @@ model Requisition {
   user           User            @relation(fields: [userId], references: [id])
   originalPrompt String
   status         String          @default("AWAITING_SCOPE")
+  threadId       String?
   
   scopeProposals ScopeProposal[]
   artifacts      Artifact[]

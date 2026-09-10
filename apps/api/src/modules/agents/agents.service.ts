@@ -20,6 +20,7 @@ export class AgentsService {
     const { id: requisitionId } = await this.requisitionService.create(
       user.id,
       projectRequest.prompt,
+      threadId,
     );
 
     const job = await this.queue.add('generate-artifacts', {

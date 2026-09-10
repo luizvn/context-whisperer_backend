@@ -1,5 +1,10 @@
 import { scopeAgent } from '../../../src/workflows/agents/nodes/scope-agent.node';
-import { GraphStateType, ArtifactType, ProposedScopeResponse } from '@context-whisperer/core';
+import {
+  GraphStateType,
+  ArtifactType,
+  ProposedScopeResponse,
+  TemplateNotFoundException,
+} from '@context-whisperer/core';
 import { RunnableConfig } from '@langchain/core/runnables';
 import type IORedis from 'ioredis';
 
@@ -142,7 +147,7 @@ describe('scopeAgent node', () => {
     });
 
     await expect(scopeAgent(mockState, mockConfig)).rejects.toThrow(
-      "Template 'default_scope' não encontrado no banco de dados.",
+      TemplateNotFoundException,
     );
     expect(mockScopeProposalCreate).not.toHaveBeenCalled();
   });
@@ -154,8 +159,29 @@ describe('scopeAgent node', () => {
     });
 
     await expect(scopeAgent(mockState, mockConfig)).rejects.toThrow(
-      "Template 'default_scope_response' não encontrado no banco de dados.",
+      TemplateNotFoundException,
     );
     expect(mockScopeProposalCreate).not.toHaveBeenCalled();
+  });
+
+  it('should include userFeedback in prompt and acknowledge refinement in message when userFeedback is present', async () => {
+    mockInvoke.mockResolvedValue(mockLlmResponse);
+    mockScopeProposalCreate.mockResolvedValue(mockCreatedProposal);
+    mockRequisitionUpdate.mockResolvedValue({ id: 'req-123', status: 'AWAITING_SCOPE' });
+    mockRedisPublish.mockResolvedValue(1);
+
+    const stateWithFeedback: GraphStateType = {
+      ...mockState,
+      userFeedback: 'Remove social login and include PIX payments',
+    };
+
+    const result = await scopeAgent(stateWithFeedback, mockConfig);
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('Remove social login and include PIX payments'),
+    );
+    expect(result.messages?.[0].content).toContain('Escopo refinado com sucesso');
+    expect(result.userFeedback).toBeUndefined();
+    expect(result.scopeApproved).toBeUndefined();
   });
 });

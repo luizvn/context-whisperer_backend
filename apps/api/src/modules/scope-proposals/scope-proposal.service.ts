@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { ProposedScopeResponse } from '@context-whisperer/core';
+import {
+  ProposedScopeResponse,
+  ScopeProposalNotFoundException,
+  ScopeProposalAlreadyProcessedException,
+  ScopeProposalFeedbackRequiredException,
+} from '@context-whisperer/core';
 import {
   ScopeProposalModel,
   ScopeProposalStatus,
 } from './scope-proposal.model';
 import { ScopeProposalRepository } from './scope-proposal.repository';
-import { EntityNotFoundException } from '../../common/exceptions';
 
 @Injectable()
 export class ScopeProposalService {
@@ -17,7 +21,7 @@ export class ScopeProposalService {
     const proposal = await this.scopeProposalRepository.findById(id);
 
     if (!proposal) {
-      throw new EntityNotFoundException('Scope proposal', id);
+      throw new ScopeProposalNotFoundException(id);
     }
 
     return proposal;
@@ -37,6 +41,12 @@ export class ScopeProposalService {
   }
 
   async approve(id: string): Promise<ScopeProposalModel> {
+    const proposal = await this.findById(id);
+
+    if (proposal.status !== ScopeProposalStatus.PENDING) {
+      throw new ScopeProposalAlreadyProcessedException(id, proposal.status);
+    }
+
     return this.scopeProposalRepository.updateStatus(
       id,
       ScopeProposalStatus.APPROVED,
@@ -44,10 +54,20 @@ export class ScopeProposalService {
   }
 
   async reject(id: string, feedback: string): Promise<ScopeProposalModel> {
+    if (!feedback || !feedback.trim()) {
+      throw new ScopeProposalFeedbackRequiredException();
+    }
+
+    const proposal = await this.findById(id);
+
+    if (proposal.status !== ScopeProposalStatus.PENDING) {
+      throw new ScopeProposalAlreadyProcessedException(id, proposal.status);
+    }
+
     return this.scopeProposalRepository.updateStatus(
       id,
       ScopeProposalStatus.REJECTED,
-      feedback,
+      feedback.trim(),
     );
   }
 

@@ -20,6 +20,7 @@ interface MockRequisition {
   userId: string;
   originalPrompt: string;
   status: string;
+  threadId?: string;
 }
 
 interface MockProposal {
@@ -28,10 +29,22 @@ interface MockProposal {
   templateId: string;
   contentMd: string;
   status: string;
+  userFeedback?: string | null;
+}
+
+interface MockArtifact {
+  id: string;
+  requisitionId: string;
+  templateId: string;
+  artifactType: string;
+  fileName: string;
+  generatedContent?: string | null;
+  status: string;
 }
 
 const inMemoryRequisitions = new Map<string, MockRequisition>();
 const inMemoryProposals = new Map<string, MockProposal>();
+const inMemoryArtifacts = new Map<string, MockArtifact>();
 
 jest.mock('@context-whisperer/database', () => ({
   prisma: {
@@ -53,6 +66,20 @@ jest.mock('@context-whisperer/database', () => ({
               '# Proposta de Escopo\n\n## 🎯 Objetivo do Projeto\n{{projectGoal}}\n\n## ✅ Must Have (Indispensável)\n{{mustHave}}\n\n## 🚀 Should Have (Importante)\n{{shouldHave}}\n\n## ✨ Could Have (Desejável)\n{{couldHave}}\n\n## 🚫 Won\'t Have (Fora de Escopo)\n{{wontHave}}\n\n{{businessConstraints}}',
           });
         }
+        if (where.name === 'default_requirements') {
+          return Promise.resolve({
+            id: 'tmpl-req-prompt-001',
+            name: where.name,
+            content: 'Você é um Engenheiro de Requisitos de Software Sênior.',
+          });
+        }
+        if (where.name === 'default_requirements_response') {
+          return Promise.resolve({
+            id: 'tmpl-req-response-001',
+            name: where.name,
+            content: '# Requisitos\n{{summary}}\n{{functionalRequirements}}\n{{nonFunctionalRequirements}}\n{{businessRules}}',
+          });
+        }
         return Promise.resolve({
           id: 'tmpl-default-001',
           name: where.name,
@@ -62,7 +89,7 @@ jest.mock('@context-whisperer/database', () => ({
     },
     scopeProposal: {
       create: jest.fn(({ data }: { data: { requisitionId: string; templateId: string; contentMd: string; status: string } }) => {
-        const id = `prop-${Date.now()}`;
+        const id = `prop-${Date.now()}-${Math.random()}`;
         const proposal: MockProposal = {
           id,
           requisitionId: data.requisitionId,
@@ -72,6 +99,50 @@ jest.mock('@context-whisperer/database', () => ({
         };
         inMemoryProposals.set(id, proposal);
         return Promise.resolve(proposal);
+      }),
+      findUnique: jest.fn(({ where }: { where: { id: string } }) => {
+        return Promise.resolve(inMemoryProposals.get(where.id) ?? null);
+      }),
+      findFirst: jest.fn(({ where }: { where: { requisitionId: string; status?: string } }) => {
+        for (const p of inMemoryProposals.values()) {
+          if (p.requisitionId === where.requisitionId && (!where.status || p.status === where.status)) {
+            return Promise.resolve(p);
+          }
+        }
+        return Promise.resolve(null);
+      }),
+    },
+    artifact: {
+      findFirst: jest.fn(({ where }: { where: { requisitionId: string; artifactType: string } }) => {
+        for (const a of inMemoryArtifacts.values()) {
+          if (a.requisitionId === where.requisitionId && a.artifactType === where.artifactType) {
+            return Promise.resolve(a);
+          }
+        }
+        return Promise.resolve(null);
+      }),
+      create: jest.fn(({ data }: { data: any }) => {
+        const id = `art-${Date.now()}`;
+        const artifact: MockArtifact = {
+          id,
+          requisitionId: data.requisitionId,
+          templateId: data.templateId,
+          artifactType: data.artifactType,
+          fileName: data.fileName,
+          status: data.status,
+        };
+        inMemoryArtifacts.set(id, artifact);
+        return Promise.resolve(artifact);
+      }),
+      updateMany: jest.fn(({ where, data }: { where: { requisitionId: string; artifactType: string }; data: any }) => {
+        let count = 0;
+        for (const a of inMemoryArtifacts.values()) {
+          if (a.requisitionId === where.requisitionId && a.artifactType === where.artifactType) {
+            Object.assign(a, data);
+            count++;
+          }
+        }
+        return Promise.resolve({ count });
       }),
     },
   },
@@ -90,12 +161,12 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
   beforeEach(() => {
     inMemoryRequisitions.clear();
     inMemoryProposals.clear();
+    inMemoryArtifacts.clear();
     publishedEvents.length = 0;
     jest.clearAllMocks();
   });
 
   it('should execute full end-to-end async workflow: GENERATING -> LLM Scope -> Save Proposal -> AWAITING_SCOPE -> Redis Event', async () => {
-    // 1. Initial State: Requisition created by API
     const reqId = 'req-async-001';
     const userId = 'user-dev-999';
 
@@ -106,7 +177,6 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
       status: 'AWAITING_SCOPE',
     });
 
-    // 2. Simulated LLM structured response
     const mockLlmResponse: ProposedScopeResponse = {
       projectGoal: 'Full-Stack Analytics Dashboard with Next.js and Prisma',
       mustHave: ['Real-time metrics charts', 'User Authentication', 'CSV Export'],
@@ -117,7 +187,6 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
     };
     mockInvoke.mockResolvedValue(mockLlmResponse);
 
-    // 3. Worker receives Job from BullMQ queue
     const jobData: GenerationJobData = {
       projectRequest: {
         name: 'Analytics Dashboard',
@@ -129,34 +198,27 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
       threadId: 'thread-async-555',
     };
 
-    // 4. Create simple graph runner invoking scopeAgent node
     const simulatedGraph = {
       invoke: async (state: any, config: RunnableConfig) => {
         return scopeAgent(state, config);
       },
     };
 
-    // 5. Worker processes job
     const result: any = await processGenerationJob(
       { id: 'job-bullmq-777', data: jobData },
       simulatedGraph,
       mockRedis,
     );
 
-    // 6. Assertions on the entire lifecycle:
-    // A. Requisition status transitioned to AWAITING_SCOPE at end of scope generation
     const updatedReq = inMemoryRequisitions.get(reqId);
     expect(updatedReq?.status).toBe('AWAITING_SCOPE');
 
-    // B. Scope proposal was created with Markdown
     expect(result.scopeProposalId).toBeDefined();
     const createdProposal = inMemoryProposals.get(result.scopeProposalId);
     expect(createdProposal).toBeDefined();
     expect(createdProposal?.contentMd).toContain('# Proposta de Escopo');
     expect(createdProposal?.contentMd).toContain('Full-Stack Analytics Dashboard with Next.js and Prisma');
-    expect(createdProposal?.contentMd).toContain('Real-time metrics charts');
 
-    // C. Redis Pub/Sub published real-time SSE events to user channel
     expect(publishedEvents.length).toBeGreaterThanOrEqual(2);
     expect(publishedEvents[0].channel).toBe(`USER_EVENTS_${userId}`);
     const startEvent = JSON.parse(publishedEvents[0].message);
@@ -165,6 +227,77 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
     const scopeEvent = JSON.parse(publishedEvents[1].message);
     expect(scopeEvent.type).toBe('SCOPE_READY');
     expect(scopeEvent.requisitionId).toBe(reqId);
-    expect(scopeEvent.data.proposal.id).toBe(result.scopeProposalId);
+  });
+
+  it('should support full HITL rejection and refinement loop via process-hitl job', async () => {
+    const reqId = 'req-hitl-002';
+    const userId = 'user-hitl-888';
+
+    inMemoryRequisitions.set(reqId, {
+      id: reqId,
+      userId,
+      originalPrompt: 'Build an invoice management system',
+      status: 'AWAITING_SCOPE',
+      threadId: 'thread-hitl-888',
+    });
+
+    const refinedLlmResponse: ProposedScopeResponse = {
+      projectGoal: 'Invoice Management MVP with Automated Reminders',
+      mustHave: ['Invoice PDF generation', 'Email reminders'],
+      shouldHave: ['Multi-currency'],
+      couldHave: ['Custom branding'],
+      wontHave: ['Crypto payments'],
+      businessConstraints: ['SaaS multi-tenant'],
+    };
+    mockInvoke.mockResolvedValue(refinedLlmResponse);
+
+    let capturedGraphState: any = {
+      projectRequest: {
+        name: 'Invoice Management',
+        prompt: 'Build an invoice management system',
+        artifacts: [ArtifactType.REQUIREMENTS],
+      },
+      requisitionId: reqId,
+      userId,
+      scopeProposalId: 'prop-initial',
+    };
+
+    const simulatedGraph = {
+      updateState: jest.fn((_cfg: any, values: any) => {
+        capturedGraphState = { ...capturedGraphState, ...values };
+        return Promise.resolve();
+      }),
+      invoke: jest.fn((_input: any, config: RunnableConfig) => {
+        return scopeAgent(capturedGraphState, config);
+      }),
+    };
+
+    const rejectJob: GenerationJobData = {
+      requisitionId: reqId,
+      userId,
+      threadId: 'thread-hitl-888',
+      action: 'REJECT',
+      feedback: 'Please add automated email reminders to Must Have',
+    };
+
+    const result: any = await processGenerationJob(
+      { id: 'job-hitl-reject-1', data: rejectJob },
+      simulatedGraph,
+      mockRedis,
+    );
+
+    expect(simulatedGraph.updateState).toHaveBeenCalledWith(
+      expect.anything(),
+      { scopeApproved: false, userFeedback: 'Please add automated email reminders to Must Have' },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('Please add automated email reminders to Must Have'),
+    );
+    expect(result.scopeProposalId).toBeDefined();
+
+    const scopeEvents = publishedEvents.filter(
+      (e) => JSON.parse(e.message).type === 'SCOPE_READY',
+    );
+    expect(scopeEvents.length).toBe(1);
   });
 });

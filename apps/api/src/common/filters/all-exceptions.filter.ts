@@ -9,6 +9,7 @@ import {
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { GqlArgumentsHost, GqlContextType } from '@nestjs/graphql';
 import { GraphQLError, GraphQLResolveInfo } from 'graphql';
+import { DomainException } from '@context-whisperer/core';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -37,6 +38,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } else {
         message = exception.message;
       }
+    } else if (exception instanceof DomainException) {
+      status = exception.statusCode;
+      message = exception.message;
+      errorType = exception.code;
+      details = exception.details;
     } else if (exception instanceof Error) {
       // Unhandled error: default 500 fallback, sanitize message to avoid leaking internals
       status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -61,10 +67,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const gqlHost = GqlArgumentsHost.create(host);
       const info = gqlHost.getInfo<GraphQLResolveInfo | undefined>();
 
+      const code =
+        exception instanceof DomainException
+          ? exception.code
+          : this.getGraphQLCode(status);
+
       return new GraphQLError(message, {
         path: info?.path ? [String(info.path.key)] : undefined,
         extensions: {
-          code: this.getGraphQLCode(status),
+          code,
           statusCode: status,
           error: errorType,
           timestamp,

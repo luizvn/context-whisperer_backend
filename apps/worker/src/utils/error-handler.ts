@@ -1,4 +1,7 @@
-import { WorkflowFailedEventData } from "@context-whisperer/core";
+import {
+  WorkflowFailedEventData,
+  DomainException,
+} from "@context-whisperer/core";
 import { logger } from "./logger";
 
 export function handleWorkerError(
@@ -16,19 +19,17 @@ export function handleWorkerError(
     "Worker job encountered an error during workflow execution",
   );
 
-  // Check for known domain errors or template errors
-  if (err instanceof Error) {
-    if (
-      err.message.includes("não encontrado no banco") ||
-      err.message.toLowerCase().includes("template")
-    ) {
-      return {
-        statusCode: 500,
-        code: "TEMPLATE_NOT_FOUND",
-        message: "Required template was not found in the database",
-      };
-    }
+  // 1. Check for DomainException (TemplateNotFound, UnsupportedArtifact, etc.)
+  if (err instanceof DomainException) {
+    return {
+      statusCode: err.statusCode,
+      code: err.code,
+      message: err.message,
+    };
+  }
 
+  // 2. Check for known provider errors (e.g. rate limit)
+  if (err instanceof Error) {
     if (
       err.message.toLowerCase().includes("rate limit") ||
       err.message.includes("429")

@@ -4,6 +4,7 @@ import {
   EntityNotFoundException,
   UserAlreadyExistsException,
   InvalidOperationException,
+  ScopeProposalAlreadyProcessedException,
 } from '../../../src/common/exceptions';
 import { ArgumentsHost, HttpStatus } from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
@@ -162,6 +163,28 @@ describe('AllExceptionsFilter', () => {
         expect.objectContaining({
           code: 'INTERNAL_SERVER_ERROR',
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        }),
+      );
+    });
+
+    it('should format DomainException in GraphQL with exact domain code and statusCode', () => {
+      const exception = new ScopeProposalAlreadyProcessedException(
+        'prop-123',
+        'APPROVED',
+      );
+
+      const result = filter.catch(exception, mockHost);
+
+      expect(result).toBeInstanceOf(GraphQLError);
+      const gqlError = result as GraphQLError;
+      expect(gqlError.message).toContain(
+        "Scope proposal 'prop-123' has already been processed",
+      );
+      expect(gqlError.extensions).toEqual(
+        expect.objectContaining({
+          code: 'SCOPE_PROPOSAL_ALREADY_PROCESSED',
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: 'SCOPE_PROPOSAL_ALREADY_PROCESSED',
         }),
       );
     });

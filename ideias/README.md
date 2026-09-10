@@ -17,6 +17,7 @@ Este diretório centraliza o histórico de decisões técnicas, a especificaçã
 | 📝 [**`planejamento_templates_prompts.md`**](./planejamento_templates_prompts.md) | Gestão de Templates de Prompt e Resposta via Seed/Banco (Append-Only) com seleção automática pelo backend. | **Concluído** |
 | 📜 [**`planejamento_logging_pino.md`**](./planejamento_logging_pino.md) | Migração para Structured Logging com Pino, proibição de `console.*` via ESLint e logs estritamente em inglês. | **Concluído** |
 | 🛡️ [**`planejamento_middleware_tratamento_erros.md`**](./planejamento_middleware_tratamento_erros.md) | Middleware e Filtro Global de Erros (Fail-Fast / Let it Throw), exceções de domínio e fallback 500. | **Concluído** |
+| 🧑‍💻 [**`planejamento_hitl_aprovacao_escopo_artefatos.md`**](./planejamento_hitl_aprovacao_escopo_artefatos.md) | Human-in-the-Loop (Aprovação/Recusa), loop de feedback e geração paralela de artefatos (Requisitos). | **Concluído** |
 
 ---
 

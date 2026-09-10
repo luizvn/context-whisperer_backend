@@ -1,4 +1,8 @@
 import { handleWorkerError } from '../../../src/utils/error-handler';
+import {
+  TemplateNotFoundException,
+  UnsupportedArtifactTypeException,
+} from '@context-whisperer/core';
 
 describe('handleWorkerError', () => {
   const mockContext = {
@@ -7,15 +11,28 @@ describe('handleWorkerError', () => {
     threadId: 'thread-789',
   };
 
-  it('should format template not found errors cleanly', () => {
-    const error = new Error("Template 'default_scope' não encontrado no banco de dados.");
+  it('should format TemplateNotFoundException with 404 and clean message', () => {
+    const error = new TemplateNotFoundException('default_scope');
 
     const result = handleWorkerError(error, mockContext);
 
     expect(result).toEqual({
-      statusCode: 500,
+      statusCode: 404,
       code: 'TEMPLATE_NOT_FOUND',
-      message: 'Required template was not found in the database',
+      message: "Template 'default_scope' not found in database",
+    });
+  });
+
+  it('should format UnsupportedArtifactTypeException with 400 and clean message', () => {
+    const error = new UnsupportedArtifactTypeException('UNKNOWN_TYPE');
+
+    const result = handleWorkerError(error, mockContext);
+
+    expect(result).toEqual({
+      statusCode: 400,
+      code: 'UNSUPPORTED_ARTIFACT_TYPE',
+      message:
+        "Artifact type 'UNKNOWN_TYPE' is not currently supported by the generation pipeline",
     });
   });
 

@@ -4,9 +4,16 @@ import { DatabaseModule } from '../../config/database.module';
 import { ScopeProposalRepository } from './scope-proposal.repository';
 import { ScopeProposalResolver } from './scope-proposal.resolver';
 import { EventsModule } from '../events/events.module';
+import { BullModule } from '@nestjs/bullmq';
+import { RequisitionsModule } from '../requisitions/requisitions.module';
 
 @Module({
-  imports: [DatabaseModule, EventsModule],
+  imports: [
+    DatabaseModule,
+    EventsModule,
+    RequisitionsModule,
+    BullModule.registerQueue({ name: 'ai-generation' }),
+  ],
   providers: [
     ScopeProposalRepository,
     ScopeProposalService,

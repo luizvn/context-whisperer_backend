@@ -13,6 +13,7 @@ export class RequisitionRepository {
     userId: string;
     originalPrompt: string;
     status: string;
+    threadId?: string;
   }): Promise<Requisition> {
     return await prisma.requisition.create({
       data,

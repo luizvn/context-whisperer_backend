@@ -83,6 +83,7 @@ describe('AgentsService', () => {
       expect(mockCreateRequisition).toHaveBeenCalledWith(
         'user-123',
         'Build a Next.js fullstack application',
+        'thread-abc',
       );
       expect(mockQueueAdd).toHaveBeenCalledWith('generate-artifacts', {
         projectRequest: projectInput,

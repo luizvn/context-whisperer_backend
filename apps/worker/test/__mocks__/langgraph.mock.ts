@@ -16,9 +16,14 @@ export class StateGraph {
     return this;
   }
 
+  addConditionalEdges(_from: string, _routing: unknown) {
+    return this;
+  }
+
   compile(options?: unknown) {
     return {
       invoke: jest.fn(),
+      updateState: jest.fn(),
       options,
     };
   }

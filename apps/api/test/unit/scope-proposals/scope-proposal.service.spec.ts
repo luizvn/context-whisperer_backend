@@ -1,10 +1,14 @@
-import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScopeProposalService } from '../../../src/modules/scope-proposals/scope-proposal.service';
 import { ScopeProposalRepository } from '../../../src/modules/scope-proposals/scope-proposal.repository';
 import { ScopeProposalStatus } from '../../../src/modules/scope-proposals/scope-proposal.model';
 import { ScopeProposal } from '@context-whisperer/database';
-import { ProposedScopeResponse } from '@context-whisperer/core';
+import {
+  ProposedScopeResponse,
+  ScopeProposalNotFoundException,
+  ScopeProposalAlreadyProcessedException,
+  ScopeProposalFeedbackRequiredException,
+} from '@context-whisperer/core';
 
 describe('ScopeProposalService', () => {
   let service: ScopeProposalService;
@@ -62,11 +66,11 @@ describe('ScopeProposalService', () => {
       expect(result).toEqual(mockProposal);
     });
 
-    it('should throw NotFoundException when proposal is not found', async () => {
+    it('should throw ScopeProposalNotFoundException when proposal is not found', async () => {
       mockFindById.mockResolvedValue(null);
 
       await expect(service.findById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        ScopeProposalNotFoundException,
       );
       expect(mockFindById).toHaveBeenCalledWith('non-existent');
     });
@@ -93,7 +97,8 @@ describe('ScopeProposalService', () => {
   });
 
   describe('approve', () => {
-    it('should update status to APPROVED', async () => {
+    it('should update status to APPROVED when proposal is PENDING', async () => {
+      mockFindById.mockResolvedValue(mockProposal);
       const approved = {
         ...mockProposal,
         status: ScopeProposalStatus.APPROVED,
@@ -102,16 +107,42 @@ describe('ScopeProposalService', () => {
 
       const result = await service.approve('proposal-123');
 
+      expect(mockFindById).toHaveBeenCalledWith('proposal-123');
       expect(mockUpdateStatus).toHaveBeenCalledWith(
         'proposal-123',
         ScopeProposalStatus.APPROVED,
       );
       expect(result).toEqual(approved);
     });
+
+    it('should throw ScopeProposalAlreadyProcessedException when already APPROVED', async () => {
+      mockFindById.mockResolvedValue({
+        ...mockProposal,
+        status: ScopeProposalStatus.APPROVED,
+      });
+
+      await expect(service.approve('proposal-123')).rejects.toThrow(
+        ScopeProposalAlreadyProcessedException,
+      );
+      expect(mockUpdateStatus).not.toHaveBeenCalled();
+    });
+
+    it('should throw ScopeProposalAlreadyProcessedException when already REJECTED', async () => {
+      mockFindById.mockResolvedValue({
+        ...mockProposal,
+        status: ScopeProposalStatus.REJECTED,
+      });
+
+      await expect(service.approve('proposal-123')).rejects.toThrow(
+        ScopeProposalAlreadyProcessedException,
+      );
+      expect(mockUpdateStatus).not.toHaveBeenCalled();
+    });
   });
 
   describe('reject', () => {
-    it('should update status to REJECTED with feedback', async () => {
+    it('should update status to REJECTED with feedback when proposal is PENDING', async () => {
+      mockFindById.mockResolvedValue(mockProposal);
       const rejected = {
         ...mockProposal,
         status: ScopeProposalStatus.REJECTED,
@@ -124,12 +155,36 @@ describe('ScopeProposalService', () => {
         'Add payment integration',
       );
 
+      expect(mockFindById).toHaveBeenCalledWith('proposal-123');
       expect(mockUpdateStatus).toHaveBeenCalledWith(
         'proposal-123',
         ScopeProposalStatus.REJECTED,
         'Add payment integration',
       );
       expect(result).toEqual(rejected);
+    });
+
+    it('should throw ScopeProposalFeedbackRequiredException when feedback is empty or whitespace', async () => {
+      await expect(service.reject('proposal-123', '')).rejects.toThrow(
+        ScopeProposalFeedbackRequiredException,
+      );
+      await expect(service.reject('proposal-123', '   ')).rejects.toThrow(
+        ScopeProposalFeedbackRequiredException,
+      );
+      expect(mockFindById).not.toHaveBeenCalled();
+      expect(mockUpdateStatus).not.toHaveBeenCalled();
+    });
+
+    it('should throw ScopeProposalAlreadyProcessedException when proposal is not PENDING', async () => {
+      mockFindById.mockResolvedValue({
+        ...mockProposal,
+        status: ScopeProposalStatus.APPROVED,
+      });
+
+      await expect(
+        service.reject('proposal-123', 'Need changes'),
+      ).rejects.toThrow(ScopeProposalAlreadyProcessedException);
+      expect(mockUpdateStatus).not.toHaveBeenCalled();
     });
   });
 
