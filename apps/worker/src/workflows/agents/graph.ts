@@ -3,7 +3,12 @@ import { MongoDBSaver } from "@langchain/langgraph-checkpoint-mongodb";
 import { MongoClient } from "mongodb";
 import { GraphState } from "@context-whisperer/core/langgraph";
 import { GraphStateType, ArtifactType } from "@context-whisperer/core";
-import { scopeAgent, artifactDispatcher, requirementsAgent } from "./nodes";
+import {
+  scopeAgent,
+  artifactDispatcher,
+  requirementsAgent,
+  judgeAgent,
+} from "./nodes";
 
 export const buildGraph = async () => {
   const dbUrl =
@@ -22,6 +27,7 @@ export const buildGraph = async () => {
     .addNode("scopeAgent", scopeAgent)
     .addNode("artifactDispatcher", artifactDispatcher)
     .addNode("requirementsAgent", requirementsAgent)
+    .addNode("judgeAgent", judgeAgent)
     .addEdge(START, "scopeAgent")
     .addConditionalEdges("scopeAgent", (state: GraphStateType) => {
       if (state.scopeApproved === true) {
@@ -33,13 +39,23 @@ export const buildGraph = async () => {
       return END;
     })
     .addConditionalEdges("artifactDispatcher", (state: GraphStateType) => {
+      if (state.retryExhausted) {
+        return END;
+      }
       const artifacts = state.projectRequest?.artifacts ?? [];
       if (artifacts.includes(ArtifactType.REQUIREMENTS)) {
         return "requirementsAgent";
       }
       return END;
     })
-    .addEdge("requirementsAgent", END);
+    .addEdge("requirementsAgent", "judgeAgent")
+    .addConditionalEdges("judgeAgent", (state: GraphStateType) => {
+      const reqStatus = state.evaluationStatus?.[ArtifactType.REQUIREMENTS];
+      if (reqStatus === "PASSED") {
+        return END;
+      }
+      return "artifactDispatcher";
+    });
 
   return graphBuilder.compile({ checkpointer: checkpointSaver });
 };

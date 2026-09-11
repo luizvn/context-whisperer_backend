@@ -14,27 +14,37 @@ const mockRequisitionUpdate = jest.fn();
 const mockTemplateFindUnique = jest.fn();
 const mockArtifactFindFirst = jest.fn();
 const mockArtifactCreate = jest.fn();
+const mockArtifactUpdate = jest.fn();
 
 jest.mock('@context-whisperer/database', () => ({
   prisma: {
     scopeProposal: {
-      findUnique: (...args: unknown[]) => Promise.resolve(mockProposalFindUnique(...args)),
-      findFirst: (...args: unknown[]) => Promise.resolve(mockProposalFindFirst(...args)),
+      findUnique: (...args: unknown[]) =>
+        Promise.resolve(mockProposalFindUnique(...args)),
+      findFirst: (...args: unknown[]) =>
+        Promise.resolve(mockProposalFindFirst(...args)),
     },
     requisition: {
-      update: (...args: unknown[]) => Promise.resolve(mockRequisitionUpdate(...args)),
+      update: (...args: unknown[]) =>
+        Promise.resolve(mockRequisitionUpdate(...args)),
     },
     template: {
-      findUnique: (...args: unknown[]) => Promise.resolve(mockTemplateFindUnique(...args)),
+      findUnique: (...args: unknown[]) =>
+        Promise.resolve(mockTemplateFindUnique(...args)),
     },
     artifact: {
-      findFirst: (...args: unknown[]) => Promise.resolve(mockArtifactFindFirst(...args)),
-      create: (...args: unknown[]) => Promise.resolve(mockArtifactCreate(...args)),
+      findFirst: (...args: unknown[]) =>
+        Promise.resolve(mockArtifactFindFirst(...args)),
+      create: (...args: unknown[]) =>
+        Promise.resolve(mockArtifactCreate(...args)),
+      update: (...args: unknown[]) =>
+        Promise.resolve(mockArtifactUpdate(...args)),
     },
   },
 }));
 
 describe('artifactDispatcher node', () => {
+  const originalEnv = process.env;
   const mockRedisPublish = jest.fn();
   const mockRedis = {
     publish: mockRedisPublish,
@@ -75,13 +85,30 @@ describe('artifactDispatcher node', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env = { ...originalEnv };
+    delete process.env.JUDGE_MAX_RETRIES;
+
     mockProposalFindUnique.mockResolvedValue(mockApprovedProposal);
     mockProposalFindFirst.mockResolvedValue(mockApprovedProposal);
-    mockRequisitionUpdate.mockResolvedValue({ id: 'req-123', status: 'GENERATING_ARTIFACTS' });
+    mockRequisitionUpdate.mockResolvedValue({
+      id: 'req-123',
+      status: 'GENERATING_ARTIFACTS',
+    });
     mockTemplateFindUnique.mockResolvedValue(mockReqTemplate);
     mockArtifactFindFirst.mockResolvedValue(null);
-    mockArtifactCreate.mockResolvedValue({ id: 'art-001', artifactType: ArtifactType.REQUIREMENTS });
+    mockArtifactCreate.mockResolvedValue({
+      id: 'art-001',
+      artifactType: ArtifactType.REQUIREMENTS,
+    });
+    mockArtifactUpdate.mockResolvedValue({
+      id: 'art-001',
+      status: 'REVISING',
+    });
     mockRedisPublish.mockResolvedValue(1);
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
   });
 
   it('should update requisition to GENERATING_ARTIFACTS, create draft artifact and emit SSE events', async () => {
@@ -127,5 +154,91 @@ describe('artifactDispatcher node', () => {
     await expect(artifactDispatcher(mockState, mockConfig)).rejects.toThrow(
       TemplateNotFoundException,
     );
+  });
+
+  it('should handle rework loop when REQUIREMENTS evaluation failed and iterationCount < maxRetries', async () => {
+    const reworkState: GraphStateType = {
+      ...mockState,
+      evaluationStatus: {
+        [ArtifactType.REQUIREMENTS]: 'FAILED',
+      },
+      evaluationFeedback: {
+        [ArtifactType.REQUIREMENTS]: 'Add missing RF-02',
+      },
+    };
+
+    mockArtifactFindFirst.mockResolvedValue({
+      id: 'art-001',
+      iterationCount: 0,
+      status: 'NEEDS_REVISION',
+    });
+
+    const result = await artifactDispatcher(reworkState, mockConfig);
+
+    expect(mockArtifactUpdate).toHaveBeenCalledWith({
+      where: { id: 'art-001' },
+      data: {
+        iterationCount: 1,
+        status: 'REVISING',
+      },
+    });
+    expect(result.artifactIterations?.[ArtifactType.REQUIREMENTS]).toBe(1);
+    expect(result.retryExhausted).toBeUndefined();
+  });
+
+  it('should trigger circuit breaker when iterationCount reaches maxRetries (default: 2)', async () => {
+    const reworkState: GraphStateType = {
+      ...mockState,
+      evaluationStatus: {
+        [ArtifactType.REQUIREMENTS]: 'FAILED',
+      },
+    };
+
+    mockArtifactFindFirst.mockResolvedValue({
+      id: 'art-001',
+      iterationCount: 2,
+      status: 'NEEDS_REVISION',
+    });
+
+    const result = await artifactDispatcher(reworkState, mockConfig);
+
+    expect(mockArtifactUpdate).toHaveBeenCalledWith({
+      where: { id: 'art-001' },
+      data: { status: 'FAILED_WITH_WARNINGS' },
+    });
+    expect(mockRequisitionUpdate).toHaveBeenCalledWith({
+      where: { id: 'req-123' },
+      data: { status: 'COMPLETED_WITH_WARNINGS' },
+    });
+    expect(mockRedisPublish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-456',
+      expect.stringContaining('COMPLETED_WITH_WARNINGS'),
+    );
+    expect(result.retryExhausted).toBe(true);
+  });
+
+  it('should respect custom JUDGE_MAX_RETRIES environment variable', async () => {
+    process.env.JUDGE_MAX_RETRIES = '1';
+
+    const reworkState: GraphStateType = {
+      ...mockState,
+      evaluationStatus: {
+        [ArtifactType.REQUIREMENTS]: 'FAILED',
+      },
+    };
+
+    mockArtifactFindFirst.mockResolvedValue({
+      id: 'art-001',
+      iterationCount: 1,
+      status: 'NEEDS_REVISION',
+    });
+
+    const result = await artifactDispatcher(reworkState, mockConfig);
+
+    expect(result.retryExhausted).toBe(true);
+    expect(mockArtifactUpdate).toHaveBeenCalledWith({
+      where: { id: 'art-001' },
+      data: { status: 'FAILED_WITH_WARNINGS' },
+    });
   });
 });

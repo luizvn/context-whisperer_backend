@@ -13,4 +13,7 @@ export {
   ScopeProposal,
   Template,
   Artifact,
+  ArtifactEvaluation,
+  QualityConstraint,
+  Prisma,
 } from "@prisma/client";

@@ -12,6 +12,11 @@ export interface GraphStateType {
   userFeedback?: string;
   approvedScopeContent?: string;
   generatedArtifactIds?: string[];
+  evaluationFeedback?: Record<string, string>;
+  artifactIterations?: Record<string, number>;
+  currentEvaluationId?: string;
+  evaluationStatus?: Record<string, 'PASSED' | 'FAILED'>;
+  retryExhausted?: boolean;
 }
 
 export const GraphState = Annotation.Root({
@@ -38,6 +43,36 @@ export const GraphState = Annotation.Root({
   generatedArtifactIds: Annotation<string[]>({
     reducer: (current, update) => (update ? current.concat(update) : current),
     default: () => [],
+  }),
+
+  evaluationFeedback: Annotation<Record<string, string> | undefined>({
+    reducer: (current, next) =>
+      next ? { ...(current ?? {}), ...next } : current,
+    default: () => undefined,
+  }),
+
+  artifactIterations: Annotation<Record<string, number> | undefined>({
+    reducer: (current, next) =>
+      next ? { ...(current ?? {}), ...next } : current,
+    default: () => undefined,
+  }),
+
+  currentEvaluationId: Annotation<string | undefined>({
+    reducer: (_, next) => next,
+    default: () => undefined,
+  }),
+
+  evaluationStatus: Annotation<
+    Record<string, 'PASSED' | 'FAILED'> | undefined
+  >({
+    reducer: (current, next) =>
+      next ? { ...(current ?? {}), ...next } : current,
+    default: () => undefined,
+  }),
+
+  retryExhausted: Annotation<boolean | undefined>({
+    reducer: (_, next) => next,
+    default: () => undefined,
   }),
 
   messages: Annotation<BaseMessage[]>({

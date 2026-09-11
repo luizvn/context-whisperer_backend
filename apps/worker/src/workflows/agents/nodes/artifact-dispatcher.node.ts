@@ -42,7 +42,91 @@ export const artifactDispatcher = async (
     });
   }
 
-  // 2. Atualiza o status da requisição para GENERATING_ARTIFACTS
+  // 2. Verifica se é um ciclo de retrabalho originado de reprovação do Agente Juiz
+  const isRequirementsFailed =
+    state.evaluationStatus?.[ArtifactType.REQUIREMENTS] === "FAILED";
+
+  if (isRequirementsFailed) {
+    const maxRetries = Number(process.env.JUDGE_MAX_RETRIES ?? 2);
+    const existingArtifact = await prisma.artifact.findFirst({
+      where: {
+        requisitionId: state.requisitionId,
+        artifactType: ArtifactType.REQUIREMENTS,
+      },
+    });
+
+    const currentIteration = existingArtifact?.iterationCount ?? 0;
+
+    if (currentIteration >= maxRetries) {
+      logger.warn(
+        {
+          requisitionId: state.requisitionId,
+          currentIteration,
+          maxRetries,
+        },
+        "Circuit breaker triggered: max rework attempts reached for REQUIREMENTS artifact",
+      );
+
+      if (existingArtifact) {
+        await prisma.artifact.update({
+          where: { id: existingArtifact.id },
+          data: { status: "FAILED_WITH_WARNINGS" },
+        });
+      }
+
+      await prisma.requisition.update({
+        where: { id: state.requisitionId },
+        data: { status: "COMPLETED_WITH_WARNINGS" },
+      });
+
+      if (redis && state.userId) {
+        const statusEvent: SseEventMessage = {
+          type: SseEventType.REQUISITION_STATUS_CHANGED,
+          userId: state.userId,
+          requisitionId: state.requisitionId,
+          threadId: threadId ?? undefined,
+          timestamp: new Date().toISOString(),
+          data: { status: "COMPLETED_WITH_WARNINGS" },
+        };
+        await redis.publish(
+          `USER_EVENTS_${state.userId}`,
+          JSON.stringify(statusEvent),
+        );
+      }
+
+      return {
+        retryExhausted: true,
+      };
+    }
+
+    const nextIteration = currentIteration + 1;
+    logger.info(
+      {
+        requisitionId: state.requisitionId,
+        nextIteration,
+        maxRetries,
+      },
+      "Dispatching REQUIREMENTS artifact for rework with judge feedback",
+    );
+
+    if (existingArtifact) {
+      await prisma.artifact.update({
+        where: { id: existingArtifact.id },
+        data: {
+          iterationCount: nextIteration,
+          status: "REVISING",
+        },
+      });
+    }
+
+    return {
+      artifactIterations: {
+        [ArtifactType.REQUIREMENTS]: nextIteration,
+      },
+    };
+  }
+
+  // 3. Modo Inicial: Atualiza status da requisição para GENERATING_ARTIFACTS
   await prisma.requisition.update({
     where: { id: state.requisitionId },
     data: { status: "GENERATING_ARTIFACTS" },
@@ -63,7 +147,7 @@ export const artifactDispatcher = async (
     );
   }
 
-  // 3. Inicializa registros em Artifact e emite ARTIFACT_GENERATING
+  // 4. Inicializa registros em Artifact e emite ARTIFACT_GENERATING
   const generatedArtifactIds: string[] = [];
   const requestedArtifacts = state.projectRequest?.artifacts ?? [];
 

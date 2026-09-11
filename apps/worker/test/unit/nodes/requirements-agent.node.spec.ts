@@ -3,7 +3,6 @@ import {
   GraphStateType,
   ArtifactType,
   RequirementsResponse,
-  SseEventType,
   TemplateNotFoundException,
 } from '@context-whisperer/core';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -27,13 +26,16 @@ const mockRequisitionUpdate = jest.fn();
 jest.mock('@context-whisperer/database', () => ({
   prisma: {
     template: {
-      findUnique: (...args: unknown[]) => Promise.resolve(mockTemplateFindUnique(...args)),
+      findUnique: (...args: unknown[]) =>
+        Promise.resolve(mockTemplateFindUnique(...args)),
     },
     artifact: {
-      updateMany: (...args: unknown[]) => Promise.resolve(mockArtifactUpdateMany(...args)),
+      updateMany: (...args: unknown[]) =>
+        Promise.resolve(mockArtifactUpdateMany(...args)),
     },
     requisition: {
-      update: (...args: unknown[]) => Promise.resolve(mockRequisitionUpdate(...args)),
+      update: (...args: unknown[]) =>
+        Promise.resolve(mockRequisitionUpdate(...args)),
     },
   },
 }));
@@ -103,22 +105,33 @@ describe('requirementsAgent node', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockTemplateFindUnique.mockImplementation(({ where }: { where: { name: string } }) => {
-      if (where.name === 'default_requirements') return Promise.resolve(mockPromptTemplate);
-      if (where.name === 'default_requirements_response') return Promise.resolve(mockResponseTemplate);
-      return Promise.resolve(null);
-    });
+    mockTemplateFindUnique.mockImplementation(
+      ({ where }: { where: { name: string } }) => {
+        if (where.name === 'default_requirements')
+          return Promise.resolve(mockPromptTemplate);
+        if (where.name === 'default_requirements_response')
+          return Promise.resolve(mockResponseTemplate);
+        return Promise.resolve(null);
+      },
+    );
     mockInvoke.mockResolvedValue(mockLlmResponse);
     mockArtifactUpdateMany.mockResolvedValue({ count: 1 });
-    mockRequisitionUpdate.mockResolvedValue({ id: 'req-123', status: 'COMPLETED' });
+    mockRequisitionUpdate.mockResolvedValue({
+      id: 'req-123',
+      status: 'COMPLETED',
+    });
     mockRedisPublish.mockResolvedValue(1);
   });
 
-  it('should generate requirements, save to artifact as COMPLETED, and mark requisition COMPLETED with SSE events', async () => {
+  it('should generate requirements, save to artifact as EVALUATING, and leave completion/SSE to judgeAgent', async () => {
     const result = await requirementsAgent(mockState, mockConfig);
 
-    expect(mockTemplateFindUnique).toHaveBeenCalledWith({ where: { name: 'default_requirements' } });
-    expect(mockTemplateFindUnique).toHaveBeenCalledWith({ where: { name: 'default_requirements_response' } });
+    expect(mockTemplateFindUnique).toHaveBeenCalledWith({
+      where: { name: 'default_requirements' },
+    });
+    expect(mockTemplateFindUnique).toHaveBeenCalledWith({
+      where: { name: 'default_requirements_response' },
+    });
     expect(mockInvoke).toHaveBeenCalledWith(
       expect.stringContaining('# Approved Scope Content for Super App'),
     );
@@ -128,30 +141,52 @@ describe('requirementsAgent node', () => {
         artifactType: ArtifactType.REQUIREMENTS,
       },
       data: {
-        status: 'COMPLETED',
-        generatedContent: expect.stringContaining('RF-01 - User Authentication'),
+        status: 'EVALUATING',
+        generatedContent: expect.stringContaining(
+          'RF-01 - User Authentication',
+        ),
       },
     });
-    expect(mockRequisitionUpdate).toHaveBeenCalledWith({
-      where: { id: 'req-123' },
-      data: { status: 'COMPLETED' },
-    });
-    expect(mockRedisPublish).toHaveBeenCalledWith(
-      'USER_EVENTS_user-456',
-      expect.stringContaining(SseEventType.ARTIFACT_COMPLETED),
+    expect(mockRequisitionUpdate).not.toHaveBeenCalled();
+    expect(mockRedisPublish).not.toHaveBeenCalled();
+    expect(result.messages?.[0].content).toContain(
+      'aguardando avaliação técnica',
     );
-    expect(mockRedisPublish).toHaveBeenCalledWith(
-      'USER_EVENTS_user-456',
-      expect.stringContaining(SseEventType.REQUISITION_STATUS_CHANGED),
+  });
+
+  it('should include counterfactual feedback in prompt when refining artifact', async () => {
+    const stateWithFeedback: GraphStateType = {
+      ...mockState,
+      evaluationFeedback: {
+        [ArtifactType.REQUIREMENTS]:
+          'Corrija RF-01 para detalhar expiração de tokens e RNF-01 para quantificar limites de concorrência.',
+      },
+    };
+
+    const result = await requirementsAgent(stateWithFeedback, mockConfig);
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'AVALIAÇÃO TÉCNICA ANTERIOR E INSTRUÇÕES DE CORREÇÃO (FEEDBACK CONTRAFACTUAL)',
+      ),
     );
-    expect(result.messages?.[0].content).toContain('Especificação de requisitos');
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Corrija RF-01 para detalhar expiração de tokens',
+      ),
+    );
+    expect(result.messages?.[0].content).toContain(
+      'refinada com base no feedback contrafactual',
+    );
   });
 
   it('should throw error without fallback if default_requirements prompt template is missing', async () => {
-    mockTemplateFindUnique.mockImplementation(({ where }: { where: { name: string } }) => {
-      if (where.name === 'default_requirements') return Promise.resolve(null);
-      return Promise.resolve(mockResponseTemplate);
-    });
+    mockTemplateFindUnique.mockImplementation(
+      ({ where }: { where: { name: string } }) => {
+        if (where.name === 'default_requirements') return Promise.resolve(null);
+        return Promise.resolve(mockResponseTemplate);
+      },
+    );
 
     await expect(requirementsAgent(mockState, mockConfig)).rejects.toThrow(
       TemplateNotFoundException,
@@ -159,10 +194,13 @@ describe('requirementsAgent node', () => {
   });
 
   it('should throw error without fallback if default_requirements_response template is missing', async () => {
-    mockTemplateFindUnique.mockImplementation(({ where }: { where: { name: string } }) => {
-      if (where.name === 'default_requirements') return Promise.resolve(mockPromptTemplate);
-      return Promise.resolve(null);
-    });
+    mockTemplateFindUnique.mockImplementation(
+      ({ where }: { where: { name: string } }) => {
+        if (where.name === 'default_requirements')
+          return Promise.resolve(mockPromptTemplate);
+        return Promise.resolve(null);
+      },
+    );
 
     await expect(requirementsAgent(mockState, mockConfig)).rejects.toThrow(
       TemplateNotFoundException,

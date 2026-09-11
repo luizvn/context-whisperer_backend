@@ -1,5 +1,10 @@
 import { processGenerationJob, GenerationJobData } from '../../src/processors/generation.processor';
-import { scopeAgent } from '../../src/workflows/agents/nodes/scope-agent.node';
+import {
+  scopeAgent,
+  artifactDispatcher,
+  requirementsAgent,
+  judgeAgent,
+} from '../../src/workflows/agents/nodes';
 import { ArtifactType, ProposedScopeResponse } from '@context-whisperer/core';
 import { RunnableConfig } from '@langchain/core/runnables';
 import type IORedis from 'ioredis';
@@ -40,11 +45,13 @@ interface MockArtifact {
   fileName: string;
   generatedContent?: string | null;
   status: string;
+  iterationCount?: number;
 }
 
 const inMemoryRequisitions = new Map<string, MockRequisition>();
 const inMemoryProposals = new Map<string, MockProposal>();
 const inMemoryArtifacts = new Map<string, MockArtifact>();
+const inMemoryEvaluations = new Map<string, any>();
 
 jest.mock('@context-whisperer/database', () => ({
   prisma: {
@@ -80,11 +87,43 @@ jest.mock('@context-whisperer/database', () => ({
             content: '# Requisitos\n{{summary}}\n{{functionalRequirements}}\n{{nonFunctionalRequirements}}\n{{businessRules}}',
           });
         }
+        if (where.name === 'judge_requirements_prompt') {
+          return Promise.resolve({
+            id: 'tmpl-judge-001',
+            name: where.name,
+            content: 'Você é um Avaliador Causal de Arquitetura e Requisitos.',
+          });
+        }
         return Promise.resolve({
           id: 'tmpl-default-001',
           name: where.name,
           content: 'Você é um Engenheiro de Requisitos Sênior rigoroso.',
         });
+      }),
+    },
+    qualityConstraint: {
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            id: 'qc-1',
+            code: 'REQ_MOSCOW_COVERAGE',
+            artifactType: 'REQUIREMENTS',
+            title: 'Cobertura Integral do MoSCoW',
+            description: 'Todos os Must Haves devem ter RF correspondente.',
+            type: 'INVARIANT',
+            severity: 'CRITICAL',
+            remedyHint: 'Formule um novo RF.',
+            isActive: true,
+          },
+        ]),
+      ),
+    },
+    artifactEvaluation: {
+      create: jest.fn(({ data }: { data: any }) => {
+        const id = `eval-${Date.now()}-${Math.random()}`;
+        const evalObj = { id, ...data };
+        inMemoryEvaluations.set(id, evalObj);
+        return Promise.resolve(evalObj);
       }),
     },
     scopeProposal: {
@@ -130,9 +169,15 @@ jest.mock('@context-whisperer/database', () => ({
           artifactType: data.artifactType,
           fileName: data.fileName,
           status: data.status,
+          iterationCount: 0,
         };
         inMemoryArtifacts.set(id, artifact);
         return Promise.resolve(artifact);
+      }),
+      update: jest.fn(({ where, data }: { where: { id: string }; data: any }) => {
+        const a = inMemoryArtifacts.get(where.id);
+        if (a) Object.assign(a, data);
+        return Promise.resolve(a);
       }),
       updateMany: jest.fn(({ where, data }: { where: { requisitionId: string; artifactType: string }; data: any }) => {
         let count = 0;
@@ -299,5 +344,151 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
       (e) => JSON.parse(e.message).type === 'SCOPE_READY',
     );
     expect(scopeEvents.length).toBe(1);
+  });
+
+  it('should execute full causal evaluation rework loop: Dispatcher -> RequirementsAgent -> JudgeAgent (Rejection) -> Dispatcher (Retry) -> RequirementsAgent -> JudgeAgent (Approval) -> Completed', async () => {
+    const reqId = 'req-causal-loop-003';
+    const userId = 'user-judge-777';
+
+    inMemoryRequisitions.set(reqId, {
+      id: reqId,
+      userId,
+      originalPrompt: 'Build an IoT tracking system',
+      status: 'AWAITING_SCOPE',
+      threadId: 'thread-causal-777',
+    });
+
+    const proposalId = 'prop-causal-approved';
+    inMemoryProposals.set(proposalId, {
+      id: proposalId,
+      requisitionId: reqId,
+      templateId: 'tmpl-response-001',
+      contentMd: '# Escopo Aprovado\nMust Have: GPS tracking',
+      status: 'APPROVED',
+    });
+
+    const config: RunnableConfig = {
+      configurable: {
+        thread_id: 'thread-causal-777',
+        redis: mockRedis,
+      },
+    };
+
+    let state: any = {
+      projectRequest: {
+        name: 'IoT Tracker',
+        prompt: 'Build an IoT tracking system',
+        artifacts: [ArtifactType.REQUIREMENTS],
+      },
+      requisitionId: reqId,
+      userId,
+      scopeProposalId: proposalId,
+      scopeApproved: true,
+      messages: [],
+    };
+
+    // 1. Dispatcher inicial
+    const dispResult = await artifactDispatcher(state, config);
+    state = { ...state, ...dispResult };
+    expect(state.approvedScopeContent).toContain('GPS tracking');
+
+    // 2. RequirementsAgent geração inicial (falha no juiz)
+    const initialReqResponse = {
+      summary: 'Initial draft',
+      functionalRequirements: [
+        { id: 'RF-01', title: 'Dashboard', description: 'Show map', priority: 'HIGH' },
+      ],
+      nonFunctionalRequirements: [
+        { id: 'RNF-01', category: 'Speed', description: 'Fast' },
+      ],
+      businessRules: [],
+    };
+    mockInvoke.mockResolvedValueOnce(initialReqResponse);
+
+    const reqResult1 = await requirementsAgent(state, config);
+    state = { ...state, ...reqResult1 };
+
+    // 3. JudgeAgent avalia e REPROVA (violação crítica: Must Have omitido)
+    const judgeFailure = {
+      score: 6.5,
+      summary: 'Omitiu o GPS tracking',
+      rootCauses: ['Omissão do rastreamento GPS'],
+      violations: [
+        {
+          ruleCode: 'REQ_MOSCOW_COVERAGE',
+          severity: 'CRITICAL',
+          location: 'RF',
+          cause: 'Falta RF de GPS',
+          remedy: 'Adicione RF-02 descrevendo GPS tracking.',
+        },
+      ],
+      counterfactualFeedback: 'Adicione o RF-02 com rastreamento GPS em tempo real.',
+    };
+    mockInvoke.mockResolvedValueOnce({
+      parsed: judgeFailure,
+      raw: { response_metadata: { model_name: 'gpt-4o' } },
+    });
+
+    const judgeResult1 = await judgeAgent(state, config);
+    state = { ...state, ...judgeResult1 };
+
+    expect(state.evaluationStatus[ArtifactType.REQUIREMENTS]).toBe('FAILED');
+    expect(state.evaluationFeedback[ArtifactType.REQUIREMENTS]).toContain('Adicione o RF-02');
+
+    // 4. Dispatcher recebe a reprovação e dispara retrabalho
+    const dispRework = await artifactDispatcher(state, config);
+    state = { ...state, ...dispRework };
+    expect(state.artifactIterations[ArtifactType.REQUIREMENTS]).toBe(1);
+
+    // 5. RequirementsAgent refina com o feedback
+    const refinedReqResponse = {
+      summary: 'Refined requirements',
+      functionalRequirements: [
+        { id: 'RF-01', title: 'Dashboard', description: 'Show map', priority: 'HIGH' },
+        { id: 'RF-02', title: 'GPS Tracking', description: 'Track devices in real-time', priority: 'HIGH' },
+      ],
+      nonFunctionalRequirements: [
+        { id: 'RNF-01', category: 'Latency', description: 'Latency under 200ms' },
+      ],
+      businessRules: [{ id: 'RN-01', description: 'Update every 5s' }],
+    };
+    mockInvoke.mockResolvedValueOnce(refinedReqResponse);
+
+    const reqResult2 = await requirementsAgent(state, config);
+    state = { ...state, ...reqResult2 };
+
+    // 6. JudgeAgent avalia a revisão e APROVA
+    const judgeSuccess = {
+      score: 9.5,
+      summary: 'Excelente especificação com total cobertura do escopo.',
+      rootCauses: [],
+      violations: [],
+      counterfactualFeedback: 'Aprovado sem ressalvas.',
+    };
+    mockInvoke.mockResolvedValueOnce({
+      parsed: judgeSuccess,
+      raw: { response_metadata: { model_name: 'gpt-4o' } },
+    });
+
+    const judgeResult2 = await judgeAgent(state, config);
+    state = { ...state, ...judgeResult2 };
+
+    expect(state.evaluationStatus[ArtifactType.REQUIREMENTS]).toBe('PASSED');
+    expect(state.evaluationFeedback).toBeUndefined();
+
+    // Verificação de persistência
+    expect(inMemoryEvaluations.size).toBe(2);
+    const finalReq = inMemoryRequisitions.get(reqId);
+    expect(finalReq?.status).toBe('COMPLETED');
+
+    const artifact = Array.from(inMemoryArtifacts.values())[0];
+    expect(artifact.status).toBe('COMPLETED');
+    expect(artifact.generatedContent).toContain('GPS Tracking');
+
+    // Verificação de emissão SSE
+    const completedEvents = publishedEvents.filter(
+      (e) => JSON.parse(e.message).type === 'ARTIFACT_COMPLETED',
+    );
+    expect(completedEvents.length).toBe(1);
   });
 });

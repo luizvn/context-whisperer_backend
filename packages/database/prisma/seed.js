@@ -54,6 +54,99 @@ const DEFAULT_REQUIREMENTS_RESPONSE_TEMPLATE = `# Especificação Técnica de Re
 ## 📌 Regras de Negócio (RN)
 {{businessRules}}`;
 
+const DEFAULT_JUDGE_REQUIREMENTS_PROMPT = `Você é um Engenheiro de Software Principal e Avaliador Causal de Arquitetura e Requisitos.
+Sua missão é realizar uma Avaliação Causal (Causal Evaluation) rigorosa da Especificação de Requisitos gerada em relação ao Escopo Aprovado e às Restrições de Qualidade formais fornecidas.
+
+DIRETRIZES DE AVALIAÇÃO CAUSAL:
+1. Verifique cada restrição de qualidade ativa em relação ao artefato gerado.
+2. Não faça apenas julgamentos vagos. Para cada inconformidade encontrada:
+   - Identifique a Causa-Raiz (Root Cause): a decisão ou omissão no texto que provocou o problema.
+   - Aponte a Regra Violada (ruleCode) e sua Severidade (CRITICAL ou WARNING).
+   - Indique o Trecho ou Seção (location) afetada.
+   - Forneça a Justificativa Causal (cause) e a Ação Corretiva/Remédio Contrafactual (remedy): o que especificamente deve ser alterado para sanar o defeito.
+3. Atribua uma nota técnica global ponderada (score) de 0.0 a 10.0:
+   - 9.0 a 10.0: Especificação exemplar, pronta para produção, sem violações críticas e no máximo pequenos ajustes estilísticos.
+   - 8.0 a 8.9: Especificação sólida e consistente, satisfaz integralmente todos os Must Haves e critérios arquiteturais, sem violações críticas.
+   - 6.0 a 7.9: Especificação incompleta ou com lacunas técnicas (ex: critérios não quantificados, regras de negócio fracas ou ausência de requisitos importantes).
+   - Abaixo de 6.0: Especificação inaceitável, com desvio de escopo (scope creep), omissão de funcionalidades críticas ou inconsistências graves.
+4. Elabore um feedback contrafactual unificado e acionável (counterfactualFeedback), orientando o especialista a reescrever apenas os trechos defeituosos.
+Retorne EXCLUSIVAMENTE um JSON estruturado seguindo o schema fornecido.`;
+
+const REQUIREMENTS_QUALITY_CONSTRAINTS = [
+  {
+    code: 'REQ_MOSCOW_COVERAGE',
+    artifactType: 'REQUIREMENTS',
+    title: 'Cobertura Integral do MoSCoW (Must Haves)',
+    description:
+      '100% das funcionalidades categorizadas como Must Have no escopo aprovado devem possuir pelo menos um Requisito Funcional (RF) explícito e rastreável correspondente.',
+    type: 'INVARIANT',
+    severity: 'CRITICAL',
+    remedyHint:
+      'Identifique o Must Have omitido no escopo e formule um novo RF descrevendo detalhadamente seu comportamento.',
+    isActive: true,
+  },
+  {
+    code: 'REQ_NO_SCOPE_CREEP',
+    artifactType: 'REQUIREMENTS',
+    title: 'Prevenção de Scope Creep (Fora de Escopo)',
+    description:
+      "É estritamente proibido incluir módulos ou requisitos que constem na seção Won't Have (Fora de Escopo) ou funcionalidades que desvirtuem o objetivo principal do MVP.",
+    type: 'NEGATIVE_CONSTRAINT',
+    severity: 'CRITICAL',
+    remedyHint:
+      'Remova o requisito incompatível ou ajuste o escopo para respeitar estritamente os limites do MVP acordados.',
+    isActive: true,
+  },
+  {
+    code: 'REQ_MEASURABLE_NON_FUNCTIONAL',
+    artifactType: 'REQUIREMENTS',
+    title: 'RNFs Mensuráveis e Quantificáveis',
+    description:
+      'Requisitos Não-Funcionais (RNF) não devem conter adjetivos vagos ("rápido", "intuitivo", "escalável") sem métricas objetivas (latência em ms, uptime em %, throughput ou concorrência).',
+    type: 'NEGATIVE_CONSTRAINT',
+    severity: 'CRITICAL',
+    remedyHint:
+      'Substitua adjetivos subjetivos por métricas numéricas quantificáveis (ex: tempo de resposta p95 < 300ms).',
+    isActive: true,
+  },
+  {
+    code: 'REQ_NO_PREMATURE_TECH_STACK',
+    artifactType: 'REQUIREMENTS',
+    title: 'Não Prescrição Prematura de Detalhes Técnicos',
+    description:
+      'Requisitos funcionais de negócio não devem prescrever detalhes prematuros de implementação (tabelas SQL específicas, portas HTTP, bibliotecas internas), exceto se expressamente exigido pelo negócio.',
+    type: 'NEGATIVE_CONSTRAINT',
+    severity: 'WARNING',
+    remedyHint:
+      'Foque no comportamento e na regra de negócio observável, delegando a arquitetura interna aos artefatos técnicos posteriores.',
+    isActive: true,
+  },
+  {
+    code: 'REQ_BUSINESS_RULES_INTEGRITY',
+    artifactType: 'REQUIREMENTS',
+    title: 'Integridade e Consistência das Regras de Negócio',
+    description:
+      'Regras de Negócio (RN) devem expressar condições lógicas claras, limites de domínio ou políticas de permissão, não sendo meras repetições dos Requisitos Funcionais.',
+    type: 'INVARIANT',
+    severity: 'CRITICAL',
+    remedyHint:
+      'Reformule a regra expressando a premissa condicional (SE... ENTÃO... SENÃO...) ou a restrição de domínio.',
+    isActive: true,
+  },
+  {
+    code: 'REQ_ATOMICITY_AND_TESTABILITY',
+    artifactType: 'REQUIREMENTS',
+    title: 'Atomicidade e Testabilidade de Requisitos',
+    description:
+      'Cada requisito funcional deve descrever uma única capacidade coesa e ser verificável por um critério de aceite claro para QA.',
+    type: 'INVARIANT',
+    severity: 'WARNING',
+    remedyHint:
+      'Decomponha requisitos compostos ou monolíticos em itens atômicos e independentes.',
+    isActive: true,
+  },
+];
+
 async function main() {
   console.log('🌱 [Seed] Semeando templates iniciais do Context-Whisperer...');
 
@@ -116,6 +209,40 @@ async function main() {
   console.log(
     `✅ [Seed] Template default_requirements_response (resposta) garantido com ID: ${defaultRequirementsResponseTemplate.id}`,
   );
+
+  const judgeRequirementsPromptTemplate = await prisma.template.upsert({
+    where: { name: 'judge_requirements_prompt' },
+    update: {},
+    create: {
+      name: 'judge_requirements_prompt',
+      description:
+        'Template de Avaliação Causal rigorosa para o Agente Juiz validar requisitos gerados',
+      content: DEFAULT_JUDGE_REQUIREMENTS_PROMPT,
+    },
+  });
+
+  console.log(
+    `✅ [Seed] Template judge_requirements_prompt garantido com ID: ${judgeRequirementsPromptTemplate.id}`,
+  );
+
+  console.log('🌱 [Seed] Semeando catálogo de QualityConstraints para REQUIREMENTS...');
+  for (const constraint of REQUIREMENTS_QUALITY_CONSTRAINTS) {
+    const upserted = await prisma.qualityConstraint.upsert({
+      where: { code: constraint.code },
+      update: {
+        title: constraint.title,
+        description: constraint.description,
+        type: constraint.type,
+        severity: constraint.severity,
+        remedyHint: constraint.remedyHint,
+        isActive: constraint.isActive,
+      },
+      create: constraint,
+    });
+    console.log(
+      `   ✓ QualityConstraint [${upserted.code}] (${upserted.severity}) garantida.`,
+    );
+  }
 }
 
 main()

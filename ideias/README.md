@@ -18,6 +18,8 @@ Este diretório centraliza o histórico de decisões técnicas, a especificaçã
 | 📜 [**`planejamento_logging_pino.md`**](./planejamento_logging_pino.md) | Migração para Structured Logging com Pino, proibição de `console.*` via ESLint e logs estritamente em inglês. | **Concluído** |
 | 🛡️ [**`planejamento_middleware_tratamento_erros.md`**](./planejamento_middleware_tratamento_erros.md) | Middleware e Filtro Global de Erros (Fail-Fast / Let it Throw), exceções de domínio e fallback 500. | **Concluído** |
 | 🧑‍💻 [**`planejamento_hitl_aprovacao_escopo_artefatos.md`**](./planejamento_hitl_aprovacao_escopo_artefatos.md) | Human-in-the-Loop (Aprovação/Recusa), loop de feedback e geração paralela de artefatos (Requisitos). | **Concluído** |
+| ⚖️ [**`planejamento_agente_juiz_causal_evaluation.md`**](./planejamento_agente_juiz_causal_evaluation.md) | Agente Juiz com Avaliação Causal, catálogo de restrições (QualityConstraints) e loop de retrabalho via Dispatcher. | **Concluído** |
+| 📚 [**`planejamento_catalogo_curado_quality_constraints.md`**](./planejamento_catalogo_curado_quality_constraints.md) | Catálogo Curado de Restrições (ISO/IEC/IEEE 29148, ISO/IEC 25010, BABOK) e Seleção Contextual Inteligente no Juiz. | **Em Execução** |
 
 ---
 

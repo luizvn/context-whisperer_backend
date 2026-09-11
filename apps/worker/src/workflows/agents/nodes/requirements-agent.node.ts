@@ -5,13 +5,10 @@ import {
   RequirementsSchema,
   RequirementsResponse,
   GraphStateType,
-  SseEventType,
-  SseEventMessage,
   ArtifactType,
   TemplateNotFoundException,
 } from "@context-whisperer/core";
 import { prisma } from "@context-whisperer/database";
-import type IORedis from "ioredis";
 import { logger } from "../../../utils/logger";
 
 function buildMarkdownFromRequirementsResponse(
@@ -48,7 +45,6 @@ export const requirementsAgent = async (
   config: RunnableConfig,
 ): Promise<Partial<GraphStateType>> => {
   const configurable = config?.configurable;
-  const redis = configurable?.redis as IORedis | undefined;
   const threadId = configurable?.thread_id as string | undefined;
 
   logger.info(
@@ -79,7 +75,9 @@ export const requirementsAgent = async (
     throw new TemplateNotFoundException("default_requirements_response");
   }
 
-  const prompt = `${promptTemplate.content}
+  const feedback = state.evaluationFeedback?.[ArtifactType.REQUIREMENTS];
+
+  let prompt = `${promptTemplate.content}
 
 Projeto: ${state.projectRequest.name}
 
@@ -90,6 +88,16 @@ Escopo Aprovado:
 ${state.approvedScopeContent || "Escopo delimitado conforme especificações aprovadas."}
 `;
 
+  if (feedback) {
+    prompt += `
+=== AVALIAÇÃO TÉCNICA ANTERIOR E INSTRUÇÕES DE CORREÇÃO (FEEDBACK CONTRAFACTUAL) ===
+O artefato gerado anteriormente foi reprovado pelo Agente Juiz com os seguintes apontamentos e instruções de correção:
+${feedback}
+
+ATENÇÃO: Mantenha as partes do artefato que estavam corretas e reescreva de forma cirúrgica os requisitos, RNFs ou regras de negócio apontados acima para sanar integralmente todas as inconformidades.
+`;
+  }
+
   const structuredLlm = model.withStructuredOutput(RequirementsSchema);
   const response = await structuredLlm.invoke(prompt);
 
@@ -98,68 +106,33 @@ ${state.approvedScopeContent || "Escopo delimitado conforme especificações apr
     responseTemplate.content,
   );
 
-  // 2. Atualiza o artefato de requisitos para COMPLETED
+  // 2. Atualiza o artefato com o conteúdo gerado e status EVALUATING para o juiz
   await prisma.artifact.updateMany({
     where: {
       requisitionId: state.requisitionId,
       artifactType: ArtifactType.REQUIREMENTS,
     },
     data: {
-      status: "COMPLETED",
+      status: "EVALUATING",
       generatedContent: markdown,
     },
   });
 
-  // 3. Emite notificação SSE ARTIFACT_COMPLETED
-  if (redis && state.userId) {
-    const artifactCompletedEvent: SseEventMessage = {
-      type: SseEventType.ARTIFACT_COMPLETED,
-      userId: state.userId,
-      requisitionId: state.requisitionId,
-      threadId: threadId ?? undefined,
-      timestamp: new Date().toISOString(),
-      data: {
-        artifactType: ArtifactType.REQUIREMENTS,
-        fileName: "requirements.md",
-        contentMd: markdown,
-      },
-    };
-    await redis.publish(
-      `USER_EVENTS_${state.userId}`,
-      JSON.stringify(artifactCompletedEvent),
-    );
-  }
-
-  // 4. Marca requisição como COMPLETED e notifica
-  await prisma.requisition.update({
-    where: { id: state.requisitionId },
-    data: { status: "COMPLETED" },
-  });
-
-  if (redis && state.userId) {
-    const completedEvent: SseEventMessage = {
-      type: SseEventType.REQUISITION_STATUS_CHANGED,
-      userId: state.userId,
-      requisitionId: state.requisitionId,
-      threadId: threadId ?? undefined,
-      timestamp: new Date().toISOString(),
-      data: { status: "COMPLETED" },
-    };
-    await redis.publish(
-      `USER_EVENTS_${state.userId}`,
-      JSON.stringify(completedEvent),
-    );
-  }
-
   logger.info(
-    { requisitionId: state.requisitionId, threadId },
-    "Requirements generation completed successfully",
+    {
+      requisitionId: state.requisitionId,
+      threadId,
+      isRework: Boolean(feedback),
+    },
+    "Requirements generation completed; ready for causal evaluation by judgeAgent",
   );
 
   return {
     messages: [
       new AIMessage({
-        content: "Especificação de requisitos gerada com sucesso.",
+        content: feedback
+          ? "Especificação de requisitos refinada com base no feedback contrafactual do Agente Juiz."
+          : "Especificação de requisitos gerada com sucesso, aguardando avaliação técnica.",
       }),
     ],
   };

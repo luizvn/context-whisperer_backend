@@ -42,6 +42,7 @@ model Requisition {
   
   scopeProposals ScopeProposal[]
   artifacts      Artifact[]
+  evaluations    ArtifactEvaluation[]
   
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -63,18 +64,62 @@ model ScopeProposal {
 }
 
 model Artifact {
-  id               String       @id @default(auto()) @map("_id") @db.ObjectId
-  requisitionId    String       @db.ObjectId
-  requisition      Requisition  @relation(fields: [requisitionId], references: [id])
-  templateId       String       @db.ObjectId
-  template         Template     @relation(fields: [templateId], references: [id])
+  id               String               @id @default(auto()) @map("_id") @db.ObjectId
+  requisitionId    String               @db.ObjectId
+  requisition      Requisition          @relation(fields: [requisitionId], references: [id])
+  templateId       String               @db.ObjectId
+  template         Template             @relation(fields: [templateId], references: [id])
   
   artifactType     String
   fileName         String
   generatedContent String?
-  status           String       @default("DRAFT")
-  iterationCount   Int          @default(0)
+  status           String               @default("DRAFT")
+  iterationCount   Int                  @default(0)
   
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  evaluations      ArtifactEvaluation[]
+
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+}
+
+model ArtifactEvaluation {
+  id                     String       @id @default(auto()) @map("_id") @db.ObjectId
+  artifactId             String       @db.ObjectId
+  artifact               Artifact     @relation(fields: [artifactId], references: [id])
+  requisitionId          String       @db.ObjectId
+  requisition            Requisition  @relation(fields: [requisitionId], references: [id])
+  
+  iteration              Int          @default(1)
+  status                 String       // "PASSED" | "FAILED"
+  score                  Float        // 0.0 a 10.0
+  
+  // Diagnóstico Causal Estruturado
+  summary                String
+  rootCauses             String[]
+  violations             Json?        // Array de objetos { ruleCode, severity, location, cause, remedy }
+  counterfactualFeedback String?      // Texto instrucional para a auto-correção
+  
+  // Métricas de IA & Auditoria
+  model                  String?
+  promptTokens           Int?
+  completionTokens       Int?
+  totalTokens            Int?
+  latencyMs              Int?
+  
+  createdAt              DateTime     @default(now())
+}
+
+model QualityConstraint {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  artifactType String       // "REQUIREMENTS", etc.
+  code         String       @unique
+  title        String
+  description  String
+  type         String       // "NEGATIVE_CONSTRAINT" | "INVARIANT"
+  severity     String       // "CRITICAL" | "WARNING"
+  remedyHint   String?
+  isActive     Boolean      @default(true)
+  
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 }
