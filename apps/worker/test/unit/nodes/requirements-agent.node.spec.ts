@@ -20,6 +20,7 @@ jest.mock('@langchain/openai', () => ({
 }));
 
 const mockTemplateFindUnique = jest.fn();
+const mockArtifactFindFirst = jest.fn();
 const mockArtifactUpdateMany = jest.fn();
 const mockRequisitionUpdate = jest.fn();
 
@@ -30,6 +31,8 @@ jest.mock('@context-whisperer/database', () => ({
         Promise.resolve(mockTemplateFindUnique(...args)),
     },
     artifact: {
+      findFirst: (...args: unknown[]) =>
+        Promise.resolve(mockArtifactFindFirst(...args)),
       updateMany: (...args: unknown[]) =>
         Promise.resolve(mockArtifactUpdateMany(...args)),
     },
@@ -73,7 +76,6 @@ describe('requirementsAgent node', () => {
         id: 'RF-01',
         title: 'User Authentication',
         description: 'System must allow users to authenticate via JWT',
-        priority: 'HIGH',
       },
     ],
     nonFunctionalRequirements: [
@@ -115,6 +117,7 @@ describe('requirementsAgent node', () => {
       },
     );
     mockInvoke.mockResolvedValue(mockLlmResponse);
+    mockArtifactFindFirst.mockResolvedValue(null);
     mockArtifactUpdateMany.mockResolvedValue({ count: 1 });
     mockRequisitionUpdate.mockResolvedValue({
       id: 'req-123',
@@ -174,6 +177,45 @@ describe('requirementsAgent node', () => {
       expect.stringContaining(
         'Corrija RF-01 para detalhar expiração de tokens',
       ),
+    );
+    expect(result.messages?.[0].content).toContain(
+      'refinada com base no feedback contrafactual',
+    );
+  });
+
+  it('should enter surgical rework mode when previousArtifactsContent is provided with feedback', async () => {
+    const surgicalState: GraphStateType = {
+      ...mockState,
+      evaluationFeedback: {
+        [ArtifactType.REQUIREMENTS]:
+          '### Diagnóstico Causal: Corrija o RF-01 incluindo critérios verificáveis.',
+      },
+      previousArtifactsContent: {
+        [ArtifactType.REQUIREMENTS]:
+          '# Especificação Anterior\n### RF-01 - Login\nUsuário faz login.',
+      },
+    };
+
+    const result = await requirementsAgent(surgicalState, mockConfig);
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'MODO DE REVISÃO TÉCNICA E REFINAMENTO CIRÚRGICO',
+      ),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('DOCUMENTO DE REQUISITOS ANTERIOR (VERSÃO A SER REFINADA)'),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('### RF-01 - Login'),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'AVALIAÇÃO TÉCNICA ANTERIOR E INSTRUÇÕES DE CORREÇÃO (FEEDBACK CONTRAFACTUAL)',
+      ),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('Corrija o RF-01 incluindo critérios verificáveis'),
     );
     expect(result.messages?.[0].content).toContain(
       'refinada com base no feedback contrafactual',

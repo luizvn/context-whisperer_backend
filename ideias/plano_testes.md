@@ -203,3 +203,47 @@ apps/worker/
   - Emissão de evento de notificação em tempo real via Redis Pub/Sub (`USER_EVENTS_${userId}`).
 - [x] Configurar script raiz `pnpm run test:integration` e `pnpm run test:all`.
 - [x] Validação: 1 test suite adicional no worker, 100% de testes passando no monorepo.
+
+---
+
+## 6. Prompts de Teste de Referência (Benchmark de Geração & Avaliação)
+
+Conjunto de prompts realistas e desafiadores para validar o comportamento do pipeline ponta a ponta (Geração de Escopo MoSCoW, Geração de Requisitos e Avaliação pelo Agente Juiz):
+
+### 🩺 Cenário 1: MedConnect (HealthTech & Telemedicina)
+- **Foco de Validação:** Controle de acesso estrito (RBAC para Médico, Paciente e Secretária), conformidade LGPD/HIPAA (`REQ_ISO25010_SECURITY_AUTH`, `REQ_ISO25010_SECURITY_CONFIDENTIALITY`), usabilidade de sala de teleconsulta e integridade de registros clínicos.
+- **Nome do Projeto:** `MedConnect Telemedicina & Prontuário Eletrônico`
+- **Prompt:**
+  ```text
+  Desenvolver uma plataforma de telemedicina web e mobile (MVP) para conectar médicos especialistas e pacientes em consultas remotas com prontuário eletrônico unificado.
+  O paciente deve poder agendar consultas, filtrar médicos por especialidade e valor, realizar videochamadas seguras (WebRTC) e acessar seu histórico de receitas e laudos.
+  O médico deve ter um painel com agenda diária, sala de teleconsulta com visualização do prontuário em tempo real, emissão de prescrições médicas digitais com assinatura digital e anotações clínicas com histórico de alterações imutável.
+  A secretária médica deve apenas gerenciar agendamentos, sem acesso às anotações clínicas.
+  O sistema deve exigir autenticação robusta (2FA para médicos), controle de acesso rigoroso por papéis (RBAC) e criptografia de ponta a ponta dos dados sensíveis de saúde conforme a LGPD.
+  A interface deve ser muito intuitiva e rápida, especialmente para pacientes idosos, com carregamento imediato do prontuário durante a consulta.
+  Para o MVP, não incluir faturamento com planos de saúde TISS/TUSS nem transcrição de áudio via inteligência artificial.
+  ```
+
+### 🚛 Cenário 2: FleetTrack (LogTech & IoT em Tempo Real)
+- **Foco de Validação:** Métricas quantificadas de performance e throughput (`REQ_ISO25010_PERFORMANCE_METRIC`), regras de negócio condicionais formais (`REQ_BABOK_CONDITIONAL_LOGIC` - geofencing e velocidade) e verificabilidade QA (`REQ_ISO29148_TESTABILITY`).
+- **Nome do Projeto:** `FleetTrack Logística & Telemetria em Tempo Real`
+- **Prompt:**
+  ```text
+  Criar um sistema de gestão de frotas e telemetria de veículos de transporte de cargas em tempo real.
+  O despachante na central monitora um mapa dinâmico com a localização dos caminhões, status de ignição, temperatura da carga refrigerada e velocidade atual, com taxa de atualização de no máximo 5 segundos.
+  O sistema deve emitir alertas sonoros e visuais imediatos caso o caminhão desvie da rota autorizada por mais de 500 metros (cerca eletrônica/geofencing), se a temperatura da carga ultrapassar o limite seguro configurado, ou se o motorista acionar o botão de pânico.
+  O motorista utiliza um app com login simplificado, visualização da rota de entrega do dia, confirmação de entrega com captura de foto do canhoto da nota fiscal e modo de funcionamento offline em áreas sem cobertura de sinal de celular com sincronização automática posterior.
+  Para o MVP, focar em rastreamento, alertas e confirmação de entrega. Não incluir módulo de manutenção preventiva de oficinas mecânicas nem integração com pedágios automáticos.
+  ```
+
+### 💳 Cenário 3: PayNexus (FinTech & Split de Pagamentos B2B)
+- **Foco de Validação:** Integridade transacional, regras financeiras, prevenção a fraudes, segurança ASVS e idempotência estrita de webhooks.
+- **Nome do Projeto:** `PayNexus Split & Gateway para Marketplace B2B`
+- **Prompt:**
+  ```text
+  Desenvolver uma API e painel web para orquestração de pagamentos e divisão automática de recebíveis (split payment) para um marketplace B2B.
+  Ao fechar uma compra com múltiplos fornecedores em um único checkout (carrinho unificado), a plataforma deve processar o pagamento via PIX ou Cartão de Crédito e realizar o split automático das porcentagens acordadas entre os lojistas e a taxa de comissão da plataforma.
+  O lojista deve ter um painel financeiro para acompanhar saldo a receber, vendas diárias, extrato detalhado de taxas descontadas e solicitar transferências bancárias via chave PIX cadastrada (com regras de limite diário de saque e verificação em duas etapas).
+  O sistema deve garantir idempotência estrita em todas as operações de cobrança e webhooks para evitar cobranças duplicadas, registrar log de auditoria fiscal para cada movimentação e emitir webhooks para os lojistas quando o status do pagamento mudar para PAGO ou ESTORNADO.
+  Para o MVP, não incluir antecipação automática de recebíveis com cessão de crédito bancário nem emissão automática de nota fiscal eletrônica municipal (NFS-e).
+  ```

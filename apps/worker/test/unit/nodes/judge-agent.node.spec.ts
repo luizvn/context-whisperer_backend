@@ -26,6 +26,7 @@ const mockArtifactUpdate = jest.fn();
 const mockTemplateFindUnique = jest.fn();
 const mockConstraintFindMany = jest.fn();
 const mockEvaluationCreate = jest.fn();
+const mockEvaluationFindFirst = jest.fn();
 const mockRequisitionUpdate = jest.fn();
 
 jest.mock('@context-whisperer/database', () => ({
@@ -47,6 +48,8 @@ jest.mock('@context-whisperer/database', () => ({
     artifactEvaluation: {
       create: (...args: unknown[]) =>
         Promise.resolve(mockEvaluationCreate(...args)),
+      findFirst: (...args: unknown[]) =>
+        Promise.resolve(mockEvaluationFindFirst(...args)),
     },
     requisition: {
       update: (...args: unknown[]) =>
@@ -135,6 +138,7 @@ describe('judgeAgent node (causal evaluation)', () => {
     mockArtifactUpdate.mockResolvedValue({ ...mockArtifact, status: 'COMPLETED' });
     mockRequisitionUpdate.mockResolvedValue({ id: 'req-123', status: 'COMPLETED' });
     mockEvaluationCreate.mockResolvedValue({ id: 'eval-001' });
+    mockEvaluationFindFirst.mockResolvedValue(null);
     mockRedisPublish.mockResolvedValue(1);
   });
 
@@ -336,6 +340,187 @@ describe('judgeAgent node (causal evaluation)', () => {
     expect(result.evaluationStatus?.[ArtifactType.REQUIREMENTS]).toBe('FAILED');
     expect(result.evaluationFeedback?.[ArtifactType.REQUIREMENTS]).toContain(
       'não encontrado',
+    );
+  });
+
+  it('should dynamically include contextual constraints when keywords match in project context', async () => {
+    const mixedConstraints = [
+      {
+        id: 'qc-core',
+        code: 'REQ_MOSCOW_COVERAGE',
+        artifactType: 'REQUIREMENTS',
+        title: 'Cobertura Integral MoSCoW',
+        description: 'Must Haves obrigatórios.',
+        type: 'INVARIANT',
+        severity: 'CRITICAL',
+        category: 'SCOPE_INTEGRITY',
+        sourceReference: 'Context-Whisperer Standard',
+        isCore: true,
+        contextKeywords: [],
+        isActive: true,
+      },
+      {
+        id: 'qc-security',
+        code: 'REQ_ISO25010_SECURITY_AUTH',
+        artifactType: 'REQUIREMENTS',
+        title: 'Autenticação e RBAC',
+        description: 'Exige RBAC e tokens com expiração.',
+        type: 'INVARIANT',
+        severity: 'CRITICAL',
+        category: 'SECURITY',
+        sourceReference: 'ISO/IEC 25010 §4.5',
+        isCore: false,
+        contextKeywords: ['auth', 'login', 'senha', 'jwt'],
+        isActive: true,
+      },
+      {
+        id: 'qc-uptime',
+        code: 'REQ_ISO25010_RELIABILITY_AVAILABILITY',
+        artifactType: 'REQUIREMENTS',
+        title: 'Disponibilidade e SLA',
+        description: 'Exige SLA de 99.9%.',
+        type: 'INVARIANT',
+        severity: 'WARNING',
+        category: 'PERFORMANCE',
+        sourceReference: 'ISO/IEC 25010 §4.4',
+        isCore: false,
+        contextKeywords: ['uptime', 'disponibilidade', 'sla'],
+        isActive: true,
+      },
+    ];
+
+    mockConstraintFindMany.mockResolvedValue(mixedConstraints);
+
+    const authProjectState: GraphStateType = {
+      ...mockState,
+      projectRequest: {
+        name: 'Auth Service',
+        prompt: 'Build a centralized authentication system with login and JWT',
+        artifacts: [ArtifactType.REQUIREMENTS],
+      },
+    };
+
+    const dummyEvaluation: CausalEvaluation = {
+      score: 9.0,
+      summary: 'Prompt avaliado com regras selecionadas dinamicamente.',
+      rootCauses: [],
+      violations: [],
+      counterfactualFeedback: 'OK',
+    };
+
+    mockInvoke.mockResolvedValue({
+      parsed: dummyEvaluation,
+      raw: new AIMessage({ content: '' }),
+    });
+
+    await judgeAgent(authProjectState, mockConfig);
+
+    // O prompt deve conter a regra Core
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('REQ_MOSCOW_COVERAGE'),
+    );
+    // O prompt deve conter a regra contextual ativada pela keyword "login" / "jwt"
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('REQ_ISO25010_SECURITY_AUTH'),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('[Categoria: SECURITY]'),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('[Fonte: ISO/IEC 25010 §4.5]'),
+    );
+    // O prompt NÃO deve conter a regra de uptime (palavras-chave ausentes)
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      expect.stringContaining('REQ_ISO25010_RELIABILITY_AVAILABILITY'),
+    );
+  });
+
+  it('should not query previous evaluation on first iteration (iterationCount === 0)', async () => {
+    mockArtifactFindFirst.mockResolvedValue({
+      ...mockArtifact,
+      iterationCount: 0,
+    });
+
+    const dummyEvaluation: CausalEvaluation = {
+      score: 9.0,
+      summary: 'Primeira iteração sem contexto prévio.',
+      rootCauses: [],
+      violations: [],
+      counterfactualFeedback: 'OK',
+    };
+
+    mockInvoke.mockResolvedValue({
+      parsed: dummyEvaluation,
+      raw: new AIMessage({ content: '' }),
+    });
+
+    await judgeAgent(mockState, mockConfig);
+
+    expect(mockEvaluationFindFirst).not.toHaveBeenCalled();
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.not.stringContaining('=== CONTEXTO DE ITERAÇÃO SUBSEQUENTE'),
+    );
+  });
+
+  it('should query previous evaluation and inject revision context when iterationCount > 0', async () => {
+    mockArtifactFindFirst.mockResolvedValue({
+      ...mockArtifact,
+      iterationCount: 1, // Iteração 2
+    });
+
+    mockEvaluationFindFirst.mockResolvedValue({
+      id: 'eval-prev-001',
+      artifactId: 'art-001',
+      iteration: 1,
+      score: 7.0,
+      status: 'FAILED',
+      violations: [
+        {
+          ruleCode: 'REQ_ISO25010_SECURITY_AUTH',
+          severity: 'CRITICAL',
+          remedy: 'Especificar RBAC e expiração de sessão JWT.',
+        },
+      ],
+      counterfactualFeedback: 'Adicione matriz RBAC para os perfis de usuário.',
+    });
+
+    const dummyEvaluation: CausalEvaluation = {
+      score: 9.2,
+      summary: 'Segunda iteração aprovada com sucesso.',
+      rootCauses: [],
+      violations: [],
+      counterfactualFeedback: 'Perfeito.',
+    };
+
+    mockInvoke.mockResolvedValue({
+      parsed: dummyEvaluation,
+      raw: new AIMessage({ content: '' }),
+    });
+
+    await judgeAgent(mockState, mockConfig);
+
+    expect(mockEvaluationFindFirst).toHaveBeenCalledWith({
+      where: {
+        artifactId: 'art-001',
+        iteration: 1,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('=== CONTEXTO DE ITERAÇÃO SUBSEQUENTE (REVISÃO EM CICLO DE REWORK) ==='),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('Esta é a Iteração 2 de refinamento do artefato.'),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('REQ_ISO25010_SECURITY_AUTH'),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('Especificar RBAC e expiração de sessão JWT.'),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.stringContaining('Adicione matriz RBAC para os perfis de usuário.'),
     );
   });
 });

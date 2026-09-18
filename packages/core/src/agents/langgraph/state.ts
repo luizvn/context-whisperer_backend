@@ -13,6 +13,7 @@ export interface GraphStateType {
   approvedScopeContent?: string;
   generatedArtifactIds?: string[];
   evaluationFeedback?: Record<string, string>;
+  previousArtifactsContent?: Record<string, string>;
   artifactIterations?: Record<string, number>;
   currentEvaluationId?: string;
   evaluationStatus?: Record<string, 'PASSED' | 'FAILED'>;
@@ -46,6 +47,12 @@ export const GraphState = Annotation.Root({
   }),
 
   evaluationFeedback: Annotation<Record<string, string> | undefined>({
+    reducer: (current, next) =>
+      next ? { ...(current ?? {}), ...next } : current,
+    default: () => undefined,
+  }),
+
+  previousArtifactsContent: Annotation<Record<string, string> | undefined>({
     reducer: (current, next) =>
       next ? { ...(current ?? {}), ...next } : current,
     default: () => undefined,

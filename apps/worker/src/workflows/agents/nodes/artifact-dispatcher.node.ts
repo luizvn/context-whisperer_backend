@@ -7,9 +7,73 @@ import {
   TemplateNotFoundException,
   UnsupportedArtifactTypeException,
 } from "@context-whisperer/core";
-import { prisma, ScopeProposal } from "@context-whisperer/database";
+import {
+  prisma,
+  ScopeProposal,
+  ArtifactEvaluation,
+} from "@context-whisperer/database";
 import type IORedis from "ioredis";
 import { logger } from "../../../utils/logger";
+
+interface CausalViolationItem {
+  ruleCode?: string;
+  severity?: string;
+  location?: string;
+  cause?: string;
+  remedy?: string;
+}
+
+function formatStructuredFeedback(
+  evaluation: {
+    score?: number;
+    status?: string;
+    summary?: string;
+    rootCauses?: string[];
+    violations?: unknown;
+    counterfactualFeedback?: string | null;
+  } | null,
+  iteration: number,
+  fallbackFeedback?: string,
+): string {
+  if (!evaluation) {
+    return (
+      fallbackFeedback ||
+      "Artefato reprovado em avaliação técnica anterior. Aplique as correções necessárias com base no escopo aprovado."
+    );
+  }
+
+  const violations = Array.isArray(evaluation.violations)
+    ? (evaluation.violations as CausalViolationItem[])
+    : [];
+
+  const violationsList =
+    violations.length > 0
+      ? violations
+          .map(
+            (v, idx) =>
+              `${idx + 1}. [${v.severity ?? "CRITICAL"}] Regra ${v.ruleCode ?? "N/A"} em "${v.location ?? "Geral"}":\n   - Causa-Raiz: ${v.cause ?? "Não detalhada"}\n   - Remédio Contrafactual: ${v.remedy ?? "Corrija conforme as especificações"}`,
+          )
+          .join("\n")
+      : "_Nenhuma violação formal específica listada._";
+
+  const rootCausesList =
+    evaluation.rootCauses && evaluation.rootCauses.length > 0
+      ? evaluation.rootCauses.map((c) => `- ${c}`).join("\n")
+      : "_Não informadas._";
+
+  return `### 📊 Diagnóstico Causal da Avaliação Anterior (Tentativa ${iteration})
+- **Status:** ${evaluation.status ?? "FAILED"} | **Nota Obtida:** ${evaluation.score ?? "N/A"}/10.0
+- **Resumo Executivo:** ${evaluation.summary ?? "Necessita revisão técnica."}
+
+### 🔍 Principais Fatores de Causa-Raiz:
+${rootCausesList}
+
+### ⚠️ Violações Formais Identificadas (Pontos de Atenção Imediata):
+${violationsList}
+
+### 🛠️ Diretrizes Contrafactuais para Auto-Correção:
+${evaluation.counterfactualFeedback ?? fallbackFeedback ?? "Ajuste os requisitos para sanar todas as violações acima."}`;
+}
 
 export const artifactDispatcher = async (
   state: GraphStateType,
@@ -119,9 +183,62 @@ export const artifactDispatcher = async (
       });
     }
 
+    // Busca a avaliação técnica correspondente para estruturar o feedback
+    let latestEvaluation: ArtifactEvaluation | null = null;
+    if (existingArtifact) {
+      if (state.currentEvaluationId) {
+        latestEvaluation = await prisma.artifactEvaluation.findUnique({
+          where: { id: state.currentEvaluationId },
+        });
+      }
+      if (!latestEvaluation) {
+        latestEvaluation = await prisma.artifactEvaluation.findFirst({
+          where: { artifactId: existingArtifact.id },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+    }
+
+    const structuredFeedback = formatStructuredFeedback(
+      latestEvaluation,
+      nextIteration,
+      state.evaluationFeedback?.[ArtifactType.REQUIREMENTS],
+    );
+
+    const previousContent = existingArtifact?.generatedContent ?? "";
+
+    if (redis && state.userId) {
+      const reworkEvent: SseEventMessage = {
+        type: SseEventType.ARTIFACT_REWORKING,
+        userId: state.userId,
+        requisitionId: state.requisitionId,
+        threadId: threadId ?? undefined,
+        timestamp: new Date().toISOString(),
+        data: {
+          artifactType: ArtifactType.REQUIREMENTS,
+          fileName: existingArtifact?.fileName ?? "requirements.md",
+          artifactId: existingArtifact?.id,
+          iterationCount: nextIteration,
+          score: latestEvaluation?.score,
+          summary: latestEvaluation?.summary,
+          rootCauses: latestEvaluation?.rootCauses ?? [],
+        },
+      };
+      await redis.publish(
+        `USER_EVENTS_${state.userId}`,
+        JSON.stringify(reworkEvent),
+      );
+    }
+
     return {
       artifactIterations: {
         [ArtifactType.REQUIREMENTS]: nextIteration,
+      },
+      evaluationFeedback: {
+        [ArtifactType.REQUIREMENTS]: structuredFeedback,
+      },
+      previousArtifactsContent: {
+        [ArtifactType.REQUIREMENTS]: previousContent,
       },
     };
   }

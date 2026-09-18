@@ -125,6 +125,20 @@ jest.mock('@context-whisperer/database', () => ({
         inMemoryEvaluations.set(id, evalObj);
         return Promise.resolve(evalObj);
       }),
+      findUnique: jest.fn(({ where }: { where: { id: string } }) => {
+        return Promise.resolve(inMemoryEvaluations.get(where.id) ?? null);
+      }),
+      findFirst: jest.fn(({ where }: { where: { artifactId: string; iteration?: number } }) => {
+        for (const e of inMemoryEvaluations.values()) {
+          if (
+            e.artifactId === where.artifactId &&
+            (where.iteration === undefined || e.iteration === where.iteration)
+          ) {
+            return Promise.resolve(e);
+          }
+        }
+        return Promise.resolve(null);
+      }),
     },
     scopeProposal: {
       create: jest.fn(({ data }: { data: { requisitionId: string; templateId: string; contentMd: string; status: string } }) => {
@@ -396,7 +410,7 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
     const initialReqResponse = {
       summary: 'Initial draft',
       functionalRequirements: [
-        { id: 'RF-01', title: 'Dashboard', description: 'Show map', priority: 'HIGH' },
+        { id: 'RF-01', title: 'Dashboard', description: 'Show map' },
       ],
       nonFunctionalRequirements: [
         { id: 'RNF-01', category: 'Speed', description: 'Fast' },
@@ -439,13 +453,15 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
     const dispRework = await artifactDispatcher(state, config);
     state = { ...state, ...dispRework };
     expect(state.artifactIterations[ArtifactType.REQUIREMENTS]).toBe(1);
+    expect(state.previousArtifactsContent[ArtifactType.REQUIREMENTS]).toBeDefined();
+    expect(state.evaluationFeedback[ArtifactType.REQUIREMENTS]).toContain('REQ_MOSCOW_COVERAGE');
 
     // 5. RequirementsAgent refina com o feedback
     const refinedReqResponse = {
       summary: 'Refined requirements',
       functionalRequirements: [
-        { id: 'RF-01', title: 'Dashboard', description: 'Show map', priority: 'HIGH' },
-        { id: 'RF-02', title: 'GPS Tracking', description: 'Track devices in real-time', priority: 'HIGH' },
+        { id: 'RF-01', title: 'Dashboard', description: 'Show map' },
+        { id: 'RF-02', title: 'GPS Tracking', description: 'Track devices in real-time' },
       ],
       nonFunctionalRequirements: [
         { id: 'RNF-01', category: 'Latency', description: 'Latency under 200ms' },
@@ -486,6 +502,11 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
     expect(artifact.generatedContent).toContain('GPS Tracking');
 
     // Verificação de emissão SSE
+    const reworkEvents = publishedEvents.filter(
+      (e) => JSON.parse(e.message).type === 'ARTIFACT_REWORKING',
+    );
+    expect(reworkEvents.length).toBe(1);
+
     const completedEvents = publishedEvents.filter(
       (e) => JSON.parse(e.message).type === 'ARTIFACT_COMPLETED',
     );

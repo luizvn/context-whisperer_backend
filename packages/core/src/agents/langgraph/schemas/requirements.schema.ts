@@ -8,9 +8,6 @@ export const FunctionalRequirementSchema = z.object({
   description: z
     .string()
     .describe('Descrição detalhada do comportamento esperado do sistema'),
-  priority: z
-    .enum(['HIGH', 'MEDIUM', 'LOW'])
-    .describe('Nível de prioridade do requisito'),
 });
 
 export const NonFunctionalRequirementSchema = z.object({

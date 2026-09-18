@@ -16,10 +16,7 @@ function buildMarkdownFromRequirementsResponse(
   templateContent: string,
 ): string {
   const functionalMd = data.functionalRequirements
-    .map(
-      (r) =>
-        `### ${r.id} - ${r.title} [Prioridade: ${r.priority}]\n${r.description}\n`,
-    )
+    .map((r) => `### ${r.id} - ${r.title}\n${r.description}\n`)
     .join("\n");
 
   const nonFunctionalMd = data.nonFunctionalRequirements
@@ -76,8 +73,27 @@ export const requirementsAgent = async (
   }
 
   const feedback = state.evaluationFeedback?.[ArtifactType.REQUIREMENTS];
+  let previousContent =
+    state.previousArtifactsContent?.[ArtifactType.REQUIREMENTS];
 
-  let prompt = `${promptTemplate.content}
+  if (feedback && !previousContent) {
+    const existing = await prisma.artifact.findFirst({
+      where: {
+        requisitionId: state.requisitionId,
+        artifactType: ArtifactType.REQUIREMENTS,
+      },
+    });
+    if (existing?.generatedContent) {
+      previousContent = existing.generatedContent;
+    }
+  }
+
+  let prompt: string;
+
+  if (feedback && previousContent) {
+    prompt = `Você é um Engenheiro de Requisitos de Software Sênior atuando no MODO DE REVISÃO TÉCNICA E REFINAMENTO CIRÚRGICO.
+
+Sua tarefa NÃO é criar uma especificação do zero. Sua missão é REFINAR E CORRIGIR cirurgicamente a especificação anterior gerada, sanando todas as inconformidades apontadas pelo Agente Juiz e preservando tudo que já estava correto.
 
 Projeto: ${state.projectRequest.name}
 
@@ -86,15 +102,47 @@ ${state.projectRequest.prompt}
 
 Escopo Aprovado:
 ${state.approvedScopeContent || "Escopo delimitado conforme especificações aprovadas."}
-`;
 
-  if (feedback) {
-    prompt += `
+=== DOCUMENTO DE REQUISITOS ANTERIOR (VERSÃO A SER REFINADA) ===
+${previousContent}
+
+=== AVALIAÇÃO TÉCNICA ANTERIOR E INSTRUÇÕES DE CORREÇÃO (FEEDBACK CONTRAFACTUAL) ===
+${feedback}
+
+DIRETRIZES MANDATÓRIAS PARA ESTE REFINAMENTO:
+1. PRESERVAÇÃO: Mantenha os requisitos funcionais (RFs), não-funcionais (RNFs) e regras de negócio (RNs) que não foram objeto de violação.
+2. CONSISTÊNCIA DE IDENTIFICADORES: Conserve os mesmos IDs existentes (ex: RF-01, RF-02, RNF-01, RN-01) para os itens preservados.
+3. CORREÇÃO CIRÚRGICA: Modifique, adicione ou remova especificamente os itens indicados no diagnóstico de causa-raiz e nos remédios contrafactuais.
+4. COBERTURA TOTAL: Garanta que todas as funcionalidades Must Have do escopo aprovado possuam cobertura rastreável (RFs para capacidades funcionais observáveis, ou telas/RNFs de usabilidade caso o Must Have expresse expectativas de experiência/interface) e que nenhum item fora de escopo esteja presente.
+
+Retorne EXCLUSIVAMENTE o JSON estruturado seguindo o schema fornecido.`;
+  } else if (feedback) {
+    prompt = `${promptTemplate.content}
+
+Projeto: ${state.projectRequest.name}
+
+Prompt Original do Usuário:
+${state.projectRequest.prompt}
+
+Escopo Aprovado:
+${state.approvedScopeContent || "Escopo delimitado conforme especificações aprovadas."}
+
 === AVALIAÇÃO TÉCNICA ANTERIOR E INSTRUÇÕES DE CORREÇÃO (FEEDBACK CONTRAFACTUAL) ===
 O artefato gerado anteriormente foi reprovado pelo Agente Juiz com os seguintes apontamentos e instruções de correção:
 ${feedback}
 
 ATENÇÃO: Mantenha as partes do artefato que estavam corretas e reescreva de forma cirúrgica os requisitos, RNFs ou regras de negócio apontados acima para sanar integralmente todas as inconformidades.
+`;
+  } else {
+    prompt = `${promptTemplate.content}
+
+Projeto: ${state.projectRequest.name}
+
+Prompt Original do Usuário:
+${state.projectRequest.prompt}
+
+Escopo Aprovado:
+${state.approvedScopeContent || "Escopo delimitado conforme especificações aprovadas."}
 `;
   }
 

@@ -89,7 +89,27 @@ No arquivo `judge-agent.node.ts`:
 ## 5. Roteiro de Execução
 
 - [x] **Etapa 0:** Documentação do planejamento arquitetural.
-- [ ] **Etapa 1 (Aspecto 2):** Atualização do schema Prisma (`category`, `sourceReference`, `isCore`, `contextKeywords`) e compilação do pacote database.
-- [ ] **Etapa 2 (Aspecto 1):** Atualização do catálogo curado com 11 regras ISO/IEEE/BABOK no `seed.js`.
-- [ ] **Etapa 3 (Aspecto 3):** Implementação da seleção contextual no nó `judge-agent.node.ts`.
-- [ ] **Etapa 4:** Atualização dos testes unitários e de integração, verificação de linter e build geral.
+- [x] **Etapa 1 (Aspecto 2):** Atualização do schema Prisma (`category`, `sourceReference`, `isCore`, `contextKeywords`) e compilação do pacote database.
+- [x] **Etapa 2 (Aspecto 1):** Atualização do catálogo curado com 11 regras ISO/IEEE/BABOK no `seed.js`.
+- [x] **Etapa 3 (Aspecto 3):** Implementação da seleção contextual no nó `judge-agent.node.ts`.
+- [x] **Etapa 4:** Atualização dos testes unitários e de integração, verificação de linter e build geral.
+
+---
+
+## 6. Diretrizes de Curadoria Incremental & Foco em MVP
+
+### 6.1 Curadoria Incremental por Artefato Intermediário
+Atualmente, o Context-Whisperer conta apenas com o agente especialista de Requisitos (`requirementsAgent`), gerando o artefato intermediário `REQUIREMENTS`. Por essa razão:
+1. **Escopo Atual Limitado:** As 11 restrições ativas aplicam-se unicamente ao artefato `REQUIREMENTS`.
+2. **Ciclo de Vida para Novos Agentes:** Conforme novos agentes especialistas forem desenvolvidos (ex: Arquitetura/Diagramas C4, Modelagem de Dados/ERD, Especificação de APIs OpenAPI/REST, Casos de Teste), **deve ser conduzido um processo dedicado de curadoria e calibração de QualityConstraints específicas para o domínio daquele artefato**, persistindo-as no banco com o respectivo `targetArtifactType`.
+
+### 6.2 Filosofia Pragmatic MVP vs. Over-Engineering Corporativo
+O objetivo central do Context-Whisperer é a ideação, especificação e entrega rápida de **MVPs (Produtos Mínimos Viáveis)**. A definição e severidade das restrições devem respeitar rigorosamente a maturidade do software almejado:
+1. **Invariantes Essenciais para MVPs:**
+   - **Alinhamento e Escopo:** Respeito absoluto ao MoSCoW (`REQ_MOSCOW_COVERAGE`) e proibição veemente de *Scope Creep* (`REQ_NO_SCOPE_CREEP`).
+   - **Clareza e Testabilidade:** Critérios de aceitação sem ambiguidade (`REQ_ISO29148_UNAMBIGUOUS`, `REQ_ISO29148_TESTABILITY`).
+   - **Segurança Básica:** Práticas essenciais de autenticação, hashing de senhas e proteção de dados sensíveis/LGPD (`REQ_ISO25010_SECURITY_AUTH`, `REQ_ISO25010_SECURITY_CONFIDENTIALITY`), pois segurança básica não pode ser negligenciada mesmo em MVPs.
+2. **Restrições Restritivas / Over-Engineering (Ex: `REQ_ISO25010_RELIABILITY_AVAILABILITY`):**
+   - Exigir SLAs numéricos de alta disponibilidade (ex: 99.99%), estratégias complexas de failover multi-região ou métricas estritas de RTO/RPO é contraproducente para um MVP hospedado em plataformas PaaS ou containers simples.
+   - Restrições desse gênero **não devem atuar como bloqueadores (`CRITICAL`)** para MVPs, devendo permanecer como `WARNING` ou ser relaxadas para focar em *degradação graciosa de erros* e *logs de diagnóstico*, evitando que o agente juiz rejeite especificações funcionais viáveis por falta de infraestrutura corporativa prematura.
+

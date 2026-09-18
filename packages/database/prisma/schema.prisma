@@ -117,9 +117,14 @@ model QualityConstraint {
   description  String
   type         String       // "NEGATIVE_CONSTRAINT" | "INVARIANT"
   severity     String       // "CRITICAL" | "WARNING"
-  remedyHint   String?
-  isActive     Boolean      @default(true)
+  remedyHint      String?
+  isActive        Boolean      @default(true)
   
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  category        String       @default("SCOPE_INTEGRITY")
+  sourceReference String?
+  isCore          Boolean      @default(true)
+  contextKeywords String[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }

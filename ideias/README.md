@@ -19,7 +19,8 @@ Este diretório centraliza o histórico de decisões técnicas, a especificaçã
 | 🛡️ [**`planejamento_middleware_tratamento_erros.md`**](./planejamento_middleware_tratamento_erros.md) | Middleware e Filtro Global de Erros (Fail-Fast / Let it Throw), exceções de domínio e fallback 500. | **Concluído** |
 | 🧑‍💻 [**`planejamento_hitl_aprovacao_escopo_artefatos.md`**](./planejamento_hitl_aprovacao_escopo_artefatos.md) | Human-in-the-Loop (Aprovação/Recusa), loop de feedback e geração paralela de artefatos (Requisitos). | **Concluído** |
 | ⚖️ [**`planejamento_agente_juiz_causal_evaluation.md`**](./planejamento_agente_juiz_causal_evaluation.md) | Agente Juiz com Avaliação Causal, catálogo de restrições (QualityConstraints) e loop de retrabalho via Dispatcher. | **Concluído** |
-| 📚 [**`planejamento_catalogo_curado_quality_constraints.md`**](./planejamento_catalogo_curado_quality_constraints.md) | Catálogo Curado de Restrições (ISO/IEC/IEEE 29148, ISO/IEC 25010, BABOK) e Seleção Contextual Inteligente no Juiz. | **Em Execução** |
+| 📚 [**`planejamento_catalogo_curado_quality_constraints.md`**](./planejamento_catalogo_curado_quality_constraints.md) | Catálogo Curado de Restrições (ISO/IEC/IEEE 29148, ISO/IEC 25010, BABOK) e Seleção Contextual Inteligente no Juiz. | **Concluído** |
+| 🎯 [**`planejamento_qualidade_geracao_calibracao_juiz.md`**](./planejamento_qualidade_geracao_calibracao_juiz.md) | Qualidade de Geração Inicial (Shift-Left), Escopo Dinâmico MoSCoW e Calibração do Juiz Causal para MVPs. | **Fases 1 e 2 Concluídas / Fase 3 Planejada** |
 
 ---
 
@@ -55,10 +56,32 @@ graph TD
 
 ---
 
+## 🧩 Diretriz Estratégica: Processo Incremental de Quality Constraints & Foco em MVP
+
+A curadoria e aplicação das restrições de qualidade (`QualityConstraint`) pelo Agente Juiz (`judgeAgent`) segue dois pilares fundamentais:
+
+### 1. Curadoria Incremental por Artefato Intermediário
+- **Estado Atual:** No workflow atual, apenas o primeiro artefato intermediário está implementado: o documento de **Requisitos (`REQUIREMENTS`)**, gerado pelo `requirementsAgent`. Portanto, o catálogo de restrições em banco cobre exclusivamente esse artefato.
+- **Evolução Incremental:** À medida que novos agentes especialistas forem desenvolvidos para gerar novos artefatos intermediários (ex: Agente de Arquitetura e Diagramas C4, Agente de Modelagem de Dados/ERD, Agente de Contratos OpenAPI/REST, Agente de Histórias de Usuário), **deverá ser realizada uma etapa dedicada de curadoria de novas `QualityConstraint`s específicas para o domínio de cada artefato**. Essas regras serão registradas no banco (via seed e migrações) e vinculadas ao respectivo `targetArtifactType` (ex: `ARCHITECTURE_DOC`, `DATA_MODEL`, `API_SPEC`).
+
+### 2. Filosofia Pragmatic MVP vs. Over-Engineering Corporativo
+- O Context-Whisperer é projetado para acelerar o ciclo de ideação, validação e desenvolvimento de **Produtos Mínimos Viáveis (MVPs)** e protótipos funcionais.
+- As restrições não devem impor burocracia ou complexidades corporativas prematuras a um MVP (como exigir SLA de 99.99%, RTO/RPO de disaster recovery ou redundância multi-região para um protótipo inicial).
+- **Foco da Avaliação em MVPs:**
+  - **Integridade de Escopo:** Cobertura estrita dos itens *Must Have* e veto rigoroso a *Scope Creep* (itens do *Won't Have* ou fora do escopo aprovado).
+  - **Higiene de Engenharia:** Atomicidade, critérios de aceite verificáveis e ausência de termos ambíguos.
+  - **Segurança Essencial:** Tratamento adequado de autenticação, sessões e proteção de dados sensíveis/LGPD quando aplicável.
+  - **Sobriedade em Infraestrutura:** Restrições pesadas de disponibilidade corporativa ou desempenho extremo devem ser tratadas com parcimônia, atuando preferencialmente como advertências (`WARNING`) ou apenas quando o escopo do usuário solicitar explicitamente requisitos de alta escalabilidade.
+
+---
+
 ## 📋 Próximos Passos Imediatos
-1. **Implementar a Suíte de Testes ([`plano_testes.md`](./plano_testes.md)):**
-   - Testes unitários para Services e Repositories.
-   - Testes de integração E2E para GraphQL e fluxos de autenticação.
-   - Mocks eficientes para Prisma e filas BullMQ.
-2. **Consolidar o Worker BullMQ com LangGraph.**
-3. **Implementar Server-Sent Events (SSE) para notificações em tempo real.**
+1. **Novos Agentes Especialistas de Artefatos Intermediários:**
+   - Agente de Arquitetura Técnica / Diagramação C4.
+   - Agente de Modelagem de Dados e Schemas.
+   - Curadoria incremental das respectivas `QualityConstraint`s alinhadas à maturidade do MVP.
+2. **Consolidação do Streaming SSE:**
+   - Refinamento das notificações em tempo real de transição de estado e checkpoints do LangGraph.
+3. **Evolução dos Testes e Avaliações Causal:**
+   - Acompanhamento das métricas de aprovação e refinamento dos pesos e remédios contrafactuais.
+

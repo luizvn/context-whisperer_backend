@@ -60,8 +60,8 @@ export const judgeAgent = async (
     throw new TemplateNotFoundException("judge_requirements_prompt");
   }
 
-  // 3. Busca as QualityConstraints ativas para REQUIREMENTS
-  const constraints = await prisma.qualityConstraint.findMany({
+  // 3. Busca e seleção contextual de QualityConstraints para REQUIREMENTS
+  const allActiveConstraints = await prisma.qualityConstraint.findMany({
     where: {
       artifactType: ArtifactType.REQUIREMENTS,
       isActive: true,
@@ -69,14 +69,103 @@ export const judgeAgent = async (
     orderBy: { severity: "asc" },
   });
 
-  const constraintsText = constraints
-    .map(
-      (c) =>
-        `- [${c.code}] (${c.severity}) ${c.title}:\n  Descrição: ${c.description}\n  Remédio esperado: ${c.remedyHint || "Corrija o requisito conforme as boas práticas."}`,
-    )
+  const textToScan = [
+    state.projectRequest?.name ?? "",
+    state.projectRequest?.prompt ?? "",
+    state.approvedScopeContent ?? "",
+    artifact.generatedContent ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const selectedConstraints = allActiveConstraints.filter((constraint) => {
+    // Regras Core (universais) são mandatórias e sempre incluídas
+    const isCore =
+      constraint.isCore === true ||
+      (constraint.isCore === undefined &&
+        (!constraint.contextKeywords ||
+          constraint.contextKeywords.length === 0));
+
+    if (isCore) {
+      return true;
+    }
+
+    // Regras contextuais: ativadas se pelo menos uma keyword der match no texto do projeto
+    if (constraint.contextKeywords && constraint.contextKeywords.length > 0) {
+      return constraint.contextKeywords.some((kw) =>
+        textToScan.includes(kw.toLowerCase().trim()),
+      );
+    }
+
+    return false;
+  });
+
+  logger.info(
+    {
+      requisitionId: state.requisitionId,
+      totalAvailable: allActiveConstraints.length,
+      selectedCount: selectedConstraints.length,
+      coreCount: selectedConstraints.filter((c) => c.isCore !== false).length,
+      contextualCount: selectedConstraints.filter((c) => c.isCore === false)
+        .length,
+    },
+    "Curated quality constraints selected for causal evaluation",
+  );
+
+  const constraintsText = selectedConstraints
+    .map((c) => {
+      const sourceInfo = c.sourceReference
+        ? ` [Fonte: ${c.sourceReference}]`
+        : "";
+      const categoryInfo = c.category ? ` [Categoria: ${c.category}]` : "";
+      return `- [${c.code}] (${c.severity})${categoryInfo}${sourceInfo} ${c.title}:\n  Descrição: ${c.description}\n  Remédio esperado: ${c.remedyHint || "Corrija o requisito conforme as boas práticas."}`;
+    })
     .join("\n\n");
 
-  // 4. Monta o prompt de avaliação causal
+  // 4. Monta o prompt de avaliação causal com consciência de iteração e contexto de revisão
+  const currentIteration = (artifact.iterationCount ?? 0) + 1;
+  let revisionContext = "";
+
+  if (currentIteration > 1) {
+    const previousEvaluation = await prisma.artifactEvaluation.findFirst({
+      where: {
+        artifactId: artifact.id,
+        iteration: currentIteration - 1,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (previousEvaluation) {
+      const previousViolationsList =
+        (previousEvaluation.violations as Array<{
+          ruleCode?: string;
+          severity?: string;
+          remedy?: string;
+        }>) || [];
+      const criticalPoints = previousViolationsList
+        .map(
+          (v) =>
+            `- [${v.severity ?? "VIOLAÇÃO"}] ${v.ruleCode ?? "REGRA"}: ${v.remedy || "Correção requerida"}`,
+        )
+        .join("\n");
+
+      revisionContext = `
+=== CONTEXTO DE ITERAÇÃO SUBSEQUENTE (REVISÃO EM CICLO DE REWORK) ===
+Esta é a Iteração ${currentIteration} de refinamento do artefato.
+Na iteração anterior (Iteração ${currentIteration - 1}), foram identificados os seguintes apontamentos:
+${criticalPoints || "- Nenhum apontamento individual estruturado registrado."}
+
+Feedback contrafactual fornecido ao especialista:
+"${previousEvaluation.counterfactualFeedback || "Ajustar especificações conforme apontamentos."}"
+
+DIRETRIZ DE AVALIAÇÃO DE REVISÃO:
+1. Avalie prioritariamente se os apontamentos e causas-raiz da iteração anterior foram sanados nesta nova versão.
+2. Não desloque critérios ou exija novos escopos arbitrários que não constavam nas deficiências apontadas, exceto se a alteração introduziu uma nova violação crítica manifesta.
+3. Se os problemas reportados anteriormente foram adequadamente corrigidos e os requisitos atendem ao escopo com critérios de teste e segurança essencial, valide a conformidade e reconheça o mérito do refinamento.
+`;
+    }
+  }
+
   const evaluationPrompt = `${judgePromptTemplate.content}
 
 === RESTRIÇÕES FORMAIS DE QUALIDADE (CATÁLOGO) ===
@@ -89,7 +178,7 @@ ${state.projectRequest?.prompt ?? ""}
 
 Escopo Aprovado:
 ${state.approvedScopeContent || "Escopo aprovado conforme acordado."}
-
+${revisionContext}
 === ESPECIFICAÇÃO DE REQUISITOS GERADA PARA AVALIAÇÃO ===
 ${artifact.generatedContent}
 `;
@@ -161,8 +250,6 @@ ${artifact.generatedContent}
   );
 
   // 6. Persistência de ArtifactEvaluation no MongoDB
-  const currentIteration = (artifact.iterationCount ?? 0) + 1;
-
   const evaluation = await prisma.artifactEvaluation.create({
     data: {
       artifactId: artifact.id,
