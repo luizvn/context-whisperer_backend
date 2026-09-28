@@ -15,6 +15,7 @@ describe('RequisitionsService', () => {
   const mockRequisition: Requisition = {
     id: 'req-123',
     userId: 'user-123',
+    name: 'E-commerce Platform',
     originalPrompt: 'Build an ecommerce platform',
     status: RequisitionStatus.AWAITING_SCOPE,
     createdAt: new Date(),
@@ -75,11 +76,13 @@ describe('RequisitionsService', () => {
 
       const result = await service.create(
         'user-123',
+        'E-commerce Platform',
         'Build an ecommerce platform',
       );
 
       expect(mockCreate).toHaveBeenCalledWith({
         userId: 'user-123',
+        name: 'E-commerce Platform',
         originalPrompt: 'Build an ecommerce platform',
         status: RequisitionStatus.AWAITING_SCOPE,
       });

@@ -11,6 +11,7 @@ import { handleWorkerError } from "../utils/error-handler";
 export interface GenerationJobData {
   projectRequest?: CreateProjectInput;
   requisitionId: string;
+  projectName?: string;
   userId: string;
   threadId: string;
   action?: "APPROVE" | "REJECT";
@@ -29,6 +30,7 @@ export async function processGenerationJob(
 ) {
   const { projectRequest, requisitionId, userId, threadId, action, feedback } =
     job.data;
+  const projectName = projectRequest?.name ?? job.data.projectName;
 
   try {
     // 1. Trata ação Human-in-the-Loop (Aprovação ou Rejeição com Feedback)
@@ -59,6 +61,7 @@ export async function processGenerationJob(
           type: SseEventType.REQUISITION_STATUS_CHANGED,
           userId,
           requisitionId,
+          projectName,
           threadId,
           timestamp: new Date().toISOString(),
           data: { status: "GENERATING" },
@@ -95,6 +98,7 @@ export async function processGenerationJob(
         type: SseEventType.REQUISITION_STATUS_CHANGED,
         userId,
         requisitionId,
+        projectName,
         threadId,
         timestamp: new Date().toISOString(),
         data: { status: "GENERATING" },
@@ -139,6 +143,7 @@ export async function processGenerationJob(
         type: SseEventType.WORKFLOW_FAILED,
         userId,
         requisitionId,
+        projectName,
         threadId,
         timestamp: new Date().toISOString(),
         data: errorData,

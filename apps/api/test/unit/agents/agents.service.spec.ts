@@ -23,6 +23,7 @@ describe('AgentsService', () => {
   const mockRequisition: RequisitionModel = {
     id: 'req-456',
     userId: 'user-123',
+    name: 'My AI App',
     originalPrompt: 'Build SaaS',
     status: 'AWAITING_SCOPE',
     createdAt: new Date(),
@@ -82,6 +83,7 @@ describe('AgentsService', () => {
 
       expect(mockCreateRequisition).toHaveBeenCalledWith(
         'user-123',
+        'My AI App',
         'Build a Next.js fullstack application',
         'thread-abc',
       );
@@ -114,9 +116,41 @@ describe('AgentsService', () => {
         mockUser,
       );
 
+      expect(mockQueueAdd).toHaveBeenCalledWith('generate-artifacts', {
+        projectRequest: {
+          ...projectInput,
+          artifacts: [ArtifactType.REQUIREMENTS],
+        },
+        requisitionId: 'req-456',
+        userId: 'user-123',
+        threadId: 'thread-1',
+      });
       expect(result.jobId).toBe('');
       expect(result.status).toBe('QUEUED');
       expect(result.requisitionId).toBe('req-456');
+    });
+
+    it('should automatically include ArtifactType.REQUIREMENTS if omitted from artifacts input', async () => {
+      const projectInput: CreateProjectInput = {
+        name: 'UML Only App',
+        prompt: 'Build UML diagrams only',
+        artifacts: [ArtifactType.UML_DIAGRAM],
+      };
+
+      mockCreateRequisition.mockResolvedValue(mockRequisition);
+      mockQueueAdd.mockResolvedValue({ id: 'job-999' });
+
+      await service.executeWorkflow(projectInput, 'thread-auto-req', mockUser);
+
+      expect(mockQueueAdd).toHaveBeenCalledWith(
+        'generate-artifacts',
+        expect.objectContaining({
+          projectRequest: {
+            ...projectInput,
+            artifacts: [ArtifactType.REQUIREMENTS, ArtifactType.UML_DIAGRAM],
+          },
+        }),
+      );
     });
   });
 });

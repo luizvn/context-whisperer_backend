@@ -143,6 +143,10 @@ describe('artifactDispatcher node', () => {
       'USER_EVENTS_user-456',
       expect.stringContaining(SseEventType.ARTIFACT_GENERATING),
     );
+    expect(mockRedisPublish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-456',
+      expect.stringContaining('"projectName":"E-commerce Platform"'),
+    );
     expect(result.approvedScopeContent).toBe('# Approved Scope Content');
     expect(result.generatedArtifactIds).toEqual(['art-001']);
   });

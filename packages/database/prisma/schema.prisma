@@ -36,6 +36,7 @@ model Requisition {
   id             String          @id @default(auto()) @map("_id") @db.ObjectId
   userId         String          @db.ObjectId
   user           User            @relation(fields: [userId], references: [id])
+  name           String          @default("Projeto")
   originalPrompt String
   status         String          @default("AWAITING_SCOPE")
   threadId       String?

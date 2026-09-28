@@ -42,6 +42,7 @@ describe('ScopeProposalResolver (Human-in-the-Loop Mutations & Queries)', () => 
   const mockRequisition = {
     id: 'req-456',
     userId: 'user-resolver-123',
+    name: 'Fintech Platform',
     originalPrompt: 'Build a fintech',
     status: 'AWAITING_SCOPE',
     threadId: 'thread-hitl-999',
@@ -109,12 +110,14 @@ describe('ScopeProposalResolver (Human-in-the-Loop Mutations & Queries)', () => 
         type: SseEventType.SCOPE_APPROVED,
         userId: mockUser.id,
         requisitionId: mockProposal.requisitionId,
+        projectName: 'Fintech Platform',
         threadId: 'thread-hitl-999',
       }),
     );
     expect(mockQueueAdd).toHaveBeenCalledWith('process-hitl', {
       action: 'APPROVE',
       requisitionId: 'req-456',
+      projectName: 'Fintech Platform',
       threadId: 'thread-hitl-999',
       userId: mockUser.id,
     });
@@ -136,6 +139,7 @@ describe('ScopeProposalResolver (Human-in-the-Loop Mutations & Queries)', () => 
         type: SseEventType.SCOPE_REJECTED,
         userId: mockUser.id,
         requisitionId: mockProposal.requisitionId,
+        projectName: 'Fintech Platform',
         threadId: 'thread-hitl-999',
       }),
     );
@@ -143,6 +147,7 @@ describe('ScopeProposalResolver (Human-in-the-Loop Mutations & Queries)', () => 
       action: 'REJECT',
       feedback,
       requisitionId: 'req-456',
+      projectName: 'Fintech Platform',
       threadId: 'thread-hitl-999',
       userId: mockUser.id,
     });

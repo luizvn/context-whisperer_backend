@@ -11,6 +11,7 @@ export class RequisitionRepository {
 
   async create(data: {
     userId: string;
+    name: string;
     originalPrompt: string;
     status: string;
     threadId?: string;

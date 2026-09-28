@@ -7,9 +7,30 @@ enum ArtifactType {
   API_SPEC
   ARCHITECTURE_DOC
   DOMAIN_MODEL
+  RECOMMENDED_PROMPT
   REQUIREMENTS
   UML_DIAGRAM
   USER_STORIES
+}
+
+"""
+Payload contendo os metadados e o binário em Base64 do pacote ZIP de artefatos
+"""
+type ArtifactsZipModel {
+  """Conteúdo binário do arquivo compactado codificado em Base64"""
+  base64: String!
+
+  """Tipo MIME do arquivo (application/zip)"""
+  contentType: String!
+
+  """Nome sugerido do arquivo ZIP (ex: specs-6aadad76.zip)"""
+  fileName: String!
+
+  """Lista completa de caminhos dos arquivos incluídos dentro do ZIP"""
+  includedFiles: [String!]!
+
+  """Tamanho total do arquivo ZIP gerado em bytes"""
+  sizeBytes: Int!
 }
 
 type AuthResponse {
@@ -59,6 +80,10 @@ type Mutation {
 }
 
 type Query {
+  """
+  Gera e retorna o pacote ZIP estruturado com todos os artefatos técnicos da requisição
+  """
+  downloadArtifactsZip(requisitionId: ID!): ArtifactsZipModel!
   me: UserModel!
 
   """Busca uma proposta de escopo pelo ID"""

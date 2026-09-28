@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { CreateProjectInput, JobQueuedResponse } from '@context-whisperer/core';
+import {
+  ArtifactType,
+  CreateProjectInput,
+  JobQueuedResponse,
+} from '@context-whisperer/core';
 import { UserModel } from '../users/user.model';
 import { RequisitionsService } from '../requisitions/requisitions.service';
 
@@ -17,14 +21,27 @@ export class AgentsService {
     threadId: string,
     user: UserModel,
   ): Promise<JobQueuedResponse> {
+    const artifacts = projectRequest.artifacts
+      ? [...projectRequest.artifacts]
+      : [];
+    if (!artifacts.includes(ArtifactType.REQUIREMENTS)) {
+      artifacts.unshift(ArtifactType.REQUIREMENTS);
+    }
+
+    const sanitizedRequest: CreateProjectInput = {
+      ...projectRequest,
+      artifacts,
+    };
+
     const { id: requisitionId } = await this.requisitionService.create(
       user.id,
-      projectRequest.prompt,
+      sanitizedRequest.name,
+      sanitizedRequest.prompt,
       threadId,
     );
 
     const job = await this.queue.add('generate-artifacts', {
-      projectRequest,
+      projectRequest: sanitizedRequest,
       requisitionId,
       userId: user.id,
       threadId,

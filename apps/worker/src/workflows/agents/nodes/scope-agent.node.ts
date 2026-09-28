@@ -77,6 +77,7 @@ export const scopeAgent = async (
 
   let prompt = `${promptTemplate.content}
 
+Nome do Projeto: ${state.projectRequest.name}
 Prompt do usuário:
 ${state.projectRequest.prompt}
 `;
@@ -122,6 +123,7 @@ Por favor, incorpore integralmente as correções e ajustes solicitados pelo usu
       type: SseEventType.SCOPE_READY,
       userId: state.userId,
       requisitionId: state.requisitionId,
+      projectName: state.projectRequest.name,
       threadId: threadId ?? undefined,
       timestamp: new Date().toISOString(),
       data: {

@@ -20,7 +20,11 @@ Este diretório centraliza o histórico de decisões técnicas, a especificaçã
 | 🧑‍💻 [**`planejamento_hitl_aprovacao_escopo_artefatos.md`**](./planejamento_hitl_aprovacao_escopo_artefatos.md) | Human-in-the-Loop (Aprovação/Recusa), loop de feedback e geração paralela de artefatos (Requisitos). | **Concluído** |
 | ⚖️ [**`planejamento_agente_juiz_causal_evaluation.md`**](./planejamento_agente_juiz_causal_evaluation.md) | Agente Juiz com Avaliação Causal, catálogo de restrições (QualityConstraints) e loop de retrabalho via Dispatcher. | **Concluído** |
 | 📚 [**`planejamento_catalogo_curado_quality_constraints.md`**](./planejamento_catalogo_curado_quality_constraints.md) | Catálogo Curado de Restrições (ISO/IEC/IEEE 29148, ISO/IEC 25010, BABOK) e Seleção Contextual Inteligente no Juiz. | **Concluído** |
-| 🎯 [**`planejamento_qualidade_geracao_calibracao_juiz.md`**](./planejamento_qualidade_geracao_calibracao_juiz.md) | Qualidade de Geração Inicial (Shift-Left), Escopo Dinâmico MoSCoW e Calibração do Juiz Causal para MVPs. | **Fases 1 e 2 Concluídas / Fase 3 Planejada** |
+| 🎯 [**`planejamento_qualidade_geracao_calibracao_juiz.md`**](./planejamento_qualidade_geracao_calibracao_juiz.md) | Qualidade de Geração Inicial (Shift-Left), Escopo Dinâmico MoSCoW e Calibração do Juiz Causal para MVPs. | **Concluído** |
+| 📦 [**`planejamento_download_zip_artefatos_dinamicos.md`**](./planejamento_download_zip_artefatos_dinamicos.md) | Download Dinâmico dos Artefatos de Projeto em ZIP (100% GraphQL Query), catálogo `/docs` dinâmico e diretrizes de extensibilidade. | **Concluído** |
+| 🏷️ [**`planejamento_persistencia_requisition_name_e_usos.md`**](./planejamento_persistencia_requisition_name_e_usos.md) | Persistência de `Requisition.name`, slugificação de arquivos ZIP, injeção no `scopeAgent` e usos no ecossistema. | **Concluído** |
+| 🚀 [**`planejamento_prompt_recomendado_mvp_loop_engineering.md`**](./planejamento_prompt_recomendado_mvp_loop_engineering.md) | Agente de Prompt Recomendado de MVP (`recommendedPromptAgent`), Master Prompt com Loop Engineering, Code-First stack e referenciamento dinâmico. | **Concluído** |
+| 🏷️ [**`planejamento_enriquecimento_sse_project_name_e_nome_zip.md`**](./planejamento_enriquecimento_sse_project_name_e_nome_zip.md) | Nomenclatura Semântica do ZIP (`artifacts-...`) & Enriquecimento SSE com `projectName`. | **Concluído** |
 
 ---
 

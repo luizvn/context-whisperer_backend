@@ -19,11 +19,13 @@ export class RequisitionsService {
 
   async create(
     userId: string,
+    name: string,
     originalPrompt: string,
     threadId?: string,
   ): Promise<RequisitionModel> {
     return this.requisitionRepository.create({
       userId,
+      name,
       originalPrompt,
       status: RequisitionStatus.AWAITING_SCOPE,
       threadId,

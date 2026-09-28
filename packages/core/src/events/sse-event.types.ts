@@ -15,6 +15,7 @@ export interface SseEventMessage<T = unknown> {
   type: SseEventType;
   userId: string;
   requisitionId?: string;
+  projectName?: string;
   threadId?: string;
   timestamp: string;
   data: T;

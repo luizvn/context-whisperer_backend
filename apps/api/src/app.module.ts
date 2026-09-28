@@ -12,6 +12,7 @@ import { OpenAIModule } from './config/openai/openai.module';
 import { RequisitionsModule } from './modules/requisitions/requisitions.module';
 import { ScopeProposalsModule } from './modules/scope-proposals/scope-proposal.module';
 import { EventsModule } from './modules/events/events.module';
+import { ArtifactsModule } from './modules/artifacts/artifacts.module';
 
 import { LoggerModule } from 'nestjs-pino';
 
@@ -57,6 +58,7 @@ import { LoggerModule } from 'nestjs-pino';
     RequisitionsModule,
     ScopeProposalsModule,
     EventsModule,
+    ArtifactsModule,
   ],
   controllers: [],
   providers: [],

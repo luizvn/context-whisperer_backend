@@ -24,6 +24,7 @@ describe('RequisitionRepository', () => {
   const mockRequisition: Requisition = {
     id: 'req-123',
     userId: 'user-123',
+    name: 'Projeto Teste',
     originalPrompt: 'Create a microservice system',
     status: 'AWAITING_SCOPE',
     createdAt: new Date(),
@@ -63,6 +64,7 @@ describe('RequisitionRepository', () => {
     it('should call prisma.requisition.create and return created requisition', async () => {
       const data = {
         userId: 'user-123',
+        name: 'Projeto Teste',
         originalPrompt: 'Create a microservice system',
         status: 'AWAITING_SCOPE',
       };

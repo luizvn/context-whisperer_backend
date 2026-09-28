@@ -20,6 +20,11 @@ export class RequisitionModel {
   @Field()
   userId!: string;
 
+  @Field(() => String, {
+    description: 'Nome do projeto atribuído pelo usuário',
+  })
+  name!: string;
+
   @Field()
   originalPrompt!: string;
 

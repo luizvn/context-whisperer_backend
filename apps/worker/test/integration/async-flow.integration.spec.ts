@@ -4,6 +4,7 @@ import {
   artifactDispatcher,
   requirementsAgent,
   judgeAgent,
+  recommendedPromptAgent,
 } from '../../src/workflows/agents/nodes';
 import { ArtifactType, ProposedScopeResponse } from '@context-whisperer/core';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -94,6 +95,20 @@ jest.mock('@context-whisperer/database', () => ({
             content: 'Você é um Avaliador Causal de Arquitetura e Requisitos.',
           });
         }
+        if (where.name === 'default_recommended_prompt') {
+          return Promise.resolve({
+            id: 'tmpl-rec-prompt-001',
+            name: where.name,
+            content: 'Você é um Engenheiro de Software Principal especialista em geração de prompts para ferramentas de IA.',
+          });
+        }
+        if (where.name === 'default_recommended_prompt_response') {
+          return Promise.resolve({
+            id: 'tmpl-rec-response-001',
+            name: where.name,
+            content: '# Blueprint de Implementação MVP\n{{projectOverview}}\n{{techStack}}\n{{implementationRoadmap}}\n{{masterPrompt}}',
+          });
+        }
         return Promise.resolve({
           id: 'tmpl-default-001',
           name: where.name,
@@ -166,6 +181,18 @@ jest.mock('@context-whisperer/database', () => ({
       }),
     },
     artifact: {
+      findMany: jest.fn(({ where }: { where: { requisitionId: string; status?: string } }) => {
+        const results: MockArtifact[] = [];
+        for (const a of inMemoryArtifacts.values()) {
+          if (
+            a.requisitionId === where.requisitionId &&
+            (!where.status || a.status === where.status)
+          ) {
+            results.push(a);
+          }
+        }
+        return Promise.resolve(results);
+      }),
       findFirst: jest.fn(({ where }: { where: { requisitionId: string; artifactType: string } }) => {
         for (const a of inMemoryArtifacts.values()) {
           if (a.requisitionId === where.requisitionId && a.artifactType === where.artifactType) {
@@ -182,8 +209,9 @@ jest.mock('@context-whisperer/database', () => ({
           templateId: data.templateId,
           artifactType: data.artifactType,
           fileName: data.fileName,
+          generatedContent: data.generatedContent,
           status: data.status,
-          iterationCount: 0,
+          iterationCount: data.iterationCount ?? 0,
         };
         inMemoryArtifacts.set(id, artifact);
         return Promise.resolve(artifact);
@@ -358,6 +386,7 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
       (e) => JSON.parse(e.message).type === 'SCOPE_READY',
     );
     expect(scopeEvents.length).toBe(1);
+    expect(JSON.parse(scopeEvents[0].message).projectName).toBe('Invoice Management');
   });
 
   it('should execute full causal evaluation rework loop: Dispatcher -> RequirementsAgent -> JudgeAgent (Rejection) -> Dispatcher (Retry) -> RequirementsAgent -> JudgeAgent (Approval) -> Completed', async () => {
@@ -492,14 +521,38 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
     expect(state.evaluationStatus[ArtifactType.REQUIREMENTS]).toBe('PASSED');
     expect(state.evaluationFeedback).toBeUndefined();
 
+    // 7. RecommendedPromptAgent gera o prompt mestre e finaliza a requisição
+    const recommendedPromptOutput = {
+      projectOverview: 'Sistema de rastreamento IoT com visualização e telemetria.',
+      techStack: 'Node.js, Fastify, Redis, React',
+      implementationRoadmap: '1. Setup\n2. Ingestão\n3. Frontend',
+      masterPrompt: 'Você é uma IA programadora. Crie a aplicação IoT...',
+    };
+    mockInvoke.mockResolvedValueOnce(recommendedPromptOutput);
+
+    const recResult = await recommendedPromptAgent(state, config);
+    state = { ...state, ...recResult };
+
+    expect(recResult.generatedArtifactIds).toBeDefined();
+    expect(recResult.generatedArtifactIds?.length).toBe(1);
+
     // Verificação de persistência
     expect(inMemoryEvaluations.size).toBe(2);
     const finalReq = inMemoryRequisitions.get(reqId);
     expect(finalReq?.status).toBe('COMPLETED');
 
-    const artifact = Array.from(inMemoryArtifacts.values())[0];
-    expect(artifact.status).toBe('COMPLETED');
-    expect(artifact.generatedContent).toContain('GPS Tracking');
+    const reqArtifact = Array.from(inMemoryArtifacts.values()).find(
+      (a) => a.artifactType === ArtifactType.REQUIREMENTS,
+    );
+    expect(reqArtifact?.status).toBe('COMPLETED');
+    expect(reqArtifact?.generatedContent).toContain('GPS Tracking');
+
+    const promptArtifact = Array.from(inMemoryArtifacts.values()).find(
+      (a) => a.artifactType === ArtifactType.RECOMMENDED_PROMPT,
+    );
+    expect(promptArtifact?.status).toBe('COMPLETED');
+    expect(promptArtifact?.fileName).toBe('recommended_mvp_prompt.md');
+    expect(promptArtifact?.generatedContent).toContain('Blueprint de Implementação MVP');
 
     // Verificação de emissão SSE
     const reworkEvents = publishedEvents.filter(
@@ -510,6 +563,13 @@ describe('Async Flow Integration (API -> BullMQ Queue -> Worker Consumer -> Stat
     const completedEvents = publishedEvents.filter(
       (e) => JSON.parse(e.message).type === 'ARTIFACT_COMPLETED',
     );
-    expect(completedEvents.length).toBe(1);
+    expect(completedEvents.length).toBe(2); // REQUIREMENTS + RECOMMENDED_PROMPT
+
+    const reqStatusEvents = publishedEvents.filter(
+      (e) => JSON.parse(e.message).type === 'REQUISITION_STATUS_CHANGED',
+    );
+    expect(reqStatusEvents.length).toBe(2);
+    expect(JSON.parse(reqStatusEvents[0].message).data.status).toBe('GENERATING_ARTIFACTS');
+    expect(JSON.parse(reqStatusEvents[1].message).data.status).toBe('COMPLETED');
   });
 });

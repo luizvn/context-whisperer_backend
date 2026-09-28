@@ -8,6 +8,7 @@ import {
   artifactDispatcher,
   requirementsAgent,
   judgeAgent,
+  recommendedPromptAgent,
 } from "./nodes";
 
 export const buildGraph = async () => {
@@ -28,6 +29,7 @@ export const buildGraph = async () => {
     .addNode("artifactDispatcher", artifactDispatcher)
     .addNode("requirementsAgent", requirementsAgent)
     .addNode("judgeAgent", judgeAgent)
+    .addNode("recommendedPromptAgent", recommendedPromptAgent)
     .addEdge(START, "scopeAgent")
     .addConditionalEdges("scopeAgent", (state: GraphStateType) => {
       if (state.scopeApproved === true) {
@@ -52,10 +54,11 @@ export const buildGraph = async () => {
     .addConditionalEdges("judgeAgent", (state: GraphStateType) => {
       const reqStatus = state.evaluationStatus?.[ArtifactType.REQUIREMENTS];
       if (reqStatus === "PASSED") {
-        return END;
+        return "recommendedPromptAgent";
       }
       return "artifactDispatcher";
-    });
+    })
+    .addEdge("recommendedPromptAgent", END);
 
   return graphBuilder.compile({ checkpointer: checkpointSaver });
 };

@@ -73,6 +73,14 @@ describe('generation.processor', () => {
       },
     );
 
+    expect(mockRedis.publish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-proc-456',
+      expect.stringContaining('"type":"REQUISITION_STATUS_CHANGED"'),
+    );
+    expect(mockRedis.publish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-proc-456',
+      expect.stringContaining('"projectName":"E-commerce Microservices"'),
+    );
     expect(result).toEqual(mockGraphResult);
   });
 
@@ -100,6 +108,10 @@ describe('generation.processor', () => {
     expect(mockRedis.publish).toHaveBeenCalledWith(
       'USER_EVENTS_user-proc-456',
       expect.stringContaining('"type":"WORKFLOW_FAILED"'),
+    );
+    expect(mockRedis.publish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-proc-456',
+      expect.stringContaining('"projectName":"E-commerce Microservices"'),
     );
   });
 
@@ -145,6 +157,7 @@ describe('generation.processor', () => {
       data: {
         requisitionId: 'req-proc-123',
         userId: 'user-proc-456',
+        projectName: 'E-commerce Microservices',
         threadId: 'thread-proc-789',
         action: 'REJECT' as const,
         feedback: 'Please simplify the scope to MVP only',
@@ -168,6 +181,10 @@ describe('generation.processor', () => {
     expect(mockPublish).toHaveBeenCalledWith(
       'USER_EVENTS_user-proc-456',
       expect.stringContaining('"type":"REQUISITION_STATUS_CHANGED"'),
+    );
+    expect(mockPublish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-proc-456',
+      expect.stringContaining('"projectName":"E-commerce Microservices"'),
     );
     expect(mockUpdateState).toHaveBeenCalledWith(
       { configurable: { thread_id: 'thread-proc-789' } },

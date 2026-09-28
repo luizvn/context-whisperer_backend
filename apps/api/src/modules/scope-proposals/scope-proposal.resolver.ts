@@ -49,6 +49,7 @@ export class ScopeProposalResolver {
       type: SseEventType.SCOPE_APPROVED,
       userId: user.id,
       requisitionId: proposal.requisitionId,
+      projectName: requisition.name,
       threadId,
       timestamp: new Date().toISOString(),
       data: proposal,
@@ -58,6 +59,7 @@ export class ScopeProposalResolver {
     await this.queue.add('process-hitl', {
       action: 'APPROVE',
       requisitionId: proposal.requisitionId,
+      projectName: requisition.name,
       threadId,
       userId: user.id,
     });
@@ -86,6 +88,7 @@ export class ScopeProposalResolver {
       type: SseEventType.SCOPE_REJECTED,
       userId: user.id,
       requisitionId: proposal.requisitionId,
+      projectName: requisition.name,
       threadId,
       timestamp: new Date().toISOString(),
       data: proposal,
@@ -96,6 +99,7 @@ export class ScopeProposalResolver {
       action: 'REJECT',
       feedback,
       requisitionId: proposal.requisitionId,
+      projectName: requisition.name,
       threadId,
       userId: user.id,
     });

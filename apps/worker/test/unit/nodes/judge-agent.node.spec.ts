@@ -208,15 +208,16 @@ describe('judgeAgent node (causal evaluation)', () => {
       where: { id: 'art-001' },
       data: { status: 'COMPLETED' },
     });
-    expect(mockRequisitionUpdate).toHaveBeenCalledWith({
-      where: { id: 'req-123' },
-      data: { status: 'COMPLETED' },
-    });
+    expect(mockRequisitionUpdate).not.toHaveBeenCalled();
     expect(mockRedisPublish).toHaveBeenCalledWith(
       'USER_EVENTS_user-456',
       expect.stringContaining(SseEventType.ARTIFACT_COMPLETED),
     );
     expect(mockRedisPublish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-456',
+      expect.stringContaining('"projectName":"Super App"'),
+    );
+    expect(mockRedisPublish).not.toHaveBeenCalledWith(
       'USER_EVENTS_user-456',
       expect.stringContaining(SseEventType.REQUISITION_STATUS_CHANGED),
     );

@@ -148,6 +148,7 @@ export const artifactDispatcher = async (
           type: SseEventType.REQUISITION_STATUS_CHANGED,
           userId: state.userId,
           requisitionId: state.requisitionId,
+          projectName: state.projectRequest.name,
           threadId: threadId ?? undefined,
           timestamp: new Date().toISOString(),
           data: { status: "COMPLETED_WITH_WARNINGS" },
@@ -212,6 +213,7 @@ export const artifactDispatcher = async (
         type: SseEventType.ARTIFACT_REWORKING,
         userId: state.userId,
         requisitionId: state.requisitionId,
+        projectName: state.projectRequest.name,
         threadId: threadId ?? undefined,
         timestamp: new Date().toISOString(),
         data: {
@@ -254,6 +256,7 @@ export const artifactDispatcher = async (
       type: SseEventType.REQUISITION_STATUS_CHANGED,
       userId: state.userId,
       requisitionId: state.requisitionId,
+      projectName: state.projectRequest.name,
       threadId: threadId ?? undefined,
       timestamp: new Date().toISOString(),
       data: { status: "GENERATING_ARTIFACTS" },
@@ -313,6 +316,7 @@ export const artifactDispatcher = async (
         type: SseEventType.ARTIFACT_GENERATING,
         userId: state.userId,
         requisitionId: state.requisitionId,
+        projectName: state.projectRequest.name,
         threadId: threadId ?? undefined,
         timestamp: new Date().toISOString(),
         data: {

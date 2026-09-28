@@ -120,6 +120,77 @@ DIRETRIZES DE AVALIAÇÃO CAUSAL E SEVERIDADE:
 
 Retorne EXCLUSIVAMENTE um JSON estruturado seguindo o schema fornecido.`;
 
+const DEFAULT_RECOMMENDED_PROMPT_TEMPLATE = `Você é um Engenheiro de Software Principal, Arquiteto de Soluções e Especialista em Engenharia de Prompt para Ferramentas de AI Coding Autônomas (Cursor Agent mode, Windsurf Cascade, Claude Code, Roo Code, Aider e GitHub Copilot Workspace).
+
+Sua missão é sintetizar o Escopo Aprovado (MoSCoW) e a Especificação Técnica de Requisitos já auditada e aprovada pelo Agente Juiz em um **Prompt Mestre de Alta Fidelidade (AI-Ready Master Prompt) com Protocolo de Loop Engineering**.
+
+O objetivo desse prompt é permitir que o usuário copie e cole o texto no modo agente da sua ferramenta de AI Coding favorita, fazendo com que a IA de código construa o MVP completo, seguro e funcional em uma única tentativa contínua, utilizando os arquivos locais do repositório como fonte autoritativa da verdade.
+
+DIRETRIZES FUNDAMENTAIS DE GERAÇÃO:
+
+1. PADRONIZAÇÃO OBRIGATÓRIA EM PORTUGUÊS DO BRASIL (100% PT-BR):
+   - Todo o conteúdo gerado (projectOverview, recommendedStack, implementationRoadmap, masterPrompt e usageInstructions) DEVE ser redigido integralmente em Português do Brasil.
+   - É terminantemente proibido alternar para o inglês em títulos, comentários, diretrizes ou etapas do prompt mestre. Preserve apenas jargões técnicos globais consagrados (ex: backend, frontend, fullstack, loop engineering, setup, build, lint, TypeScript, Next.js, Docker, RBAC, JWT, etc.).
+
+2. HIERARQUIA DA VERDADE & REFERENCIAMENTO AUTORITATIVO DE ARQUIVOS (VETO AO DUMP INLINE):
+   - O Master Prompt NÃO deve duplicar ou resumir requisitos em texto corrido no corpo do prompt.
+   - Em vez disso, o Master Prompt deve instruir a IA de código a ler e respeitar os arquivos locais presentes no repositório (conforme listados na seção "ARQUIVOS DE ESPECIFICAÇÃO DISPONÍVEIS NO REPOSITÓRIO"):
+     * FONTE PRIMÁRIA DA VERDADE TÉCNICA: @docs/requirements.md (ou ./requirements.md). A IA DEVE analisar este documento antes de codificar, extraindo rigorosamente todos os Requisitos Funcionais (RFs), Requisitos Não-Funcionais (RNFs) mensuráveis, Regras de Negócio (RNs) condicionais e a matriz RBAC.
+     * CONTEXTO EXECUTIVO E FRONTEIRAS DE ESCOPO: @docs/scope.md (ou ./scope.md). Serve para contextualizar a proposta de valor e aplicar a blindagem contra Scope Creep — a IA está terminantemente proibida de implementar itens categorizados como Won't Have (Fora de Escopo).
+
+3. PROTOCOLO DE LOOP ENGINEERING (EXECUÇÃO AUTÔNOMA DE PONTA A PONTA):
+   - O Master Prompt gerado DEVE conter diretrizes formais para execução autônoma contínua:
+     * Modo Autônomo e Não-Interrupção: Instrua a IA a executar continuamente em loop, sem interromper o fluxo para pedir autorização ou confirmação de passos óbvios. Deve progredir iterativamente arquivo por arquivo até o MVP estar totalmente construído.
+     * Ciclo Iterativo de Construção em 5 Fases (Execution Loop):
+       - Loop 1 (Scaffolding & Setup): Inicialização do projeto, estrutura modular de pastas, TypeScript em modo estrito (strict: true), configuração de linter, scripts de inicialização e arquivo de variáveis de ambiente (.env.example).
+       - Loop 2 (Modelagem de Dados & Migrações): Schemas de banco de dados (ex: Prisma, Drizzle) espelhando exatamente as entidades e relacionamentos de requirements.md, com geração de migrações e sementes de teste (seed).
+       - Loop 3 (Backend Core, Autenticação & APIs de Domínio): Implementação de autenticação robusta (2FA/JWT), perfis RBAC, endpoints REST/GraphQL com validação estrita (Zod/class-validator) e aplicação integral das Regras de Negócio condicionais (RNs).
+       - Loop 4 (Frontend UI & Fluxos): Telas e componentes responsivos cobrindo 100% dos fluxos de usuário essenciais (Must Haves), integrados às APIs com estados visuais de loading, erro e sucesso.
+       - Loop 5 (Verificação de Integridade & Auto-Correção): Execução de checagem de tipos (tsc) e build de produção (npm run build). Se houver qualquer falha ou erro de compilação/linter, a IA deve analisar o log, identificar a causa-raiz, aplicar a correção no código e executar novamente até o build passar com 0 erros.
+     * Critério de Conclusão e Definition of Done (DoD): O MVP só pode ser declarado concluído quando 100% dos RFs de requirements.md estiverem implementados, o build estiver passando com sucesso e houver um README.md conciso com instruções de execução local.
+
+4. RECOMENDAÇÃO DE STACK TECNOLÓGICA OPINATIVA & AUTO-CONTIDA (ZERO BaaS / ZERO LOCK-IN):
+   - A recomendação de stack tecnológica (recommendedStack) e a sua utilização no Master Prompt DEVE ser estritamente opinativa, decisiva e auto-contida:
+     * Veto a Opções Alternativas ("OU"): É expressamente proibido sugerir opções ambíguas como "NestJS ou Fastify", "PostgreSQL ou MongoDB", "Prisma ou Drizzle". Escolha UMA única tecnologia sólida e coesa para cada camada (Frontend, Backend, Banco de Dados, Autenticação, Estilização).
+     * Veto Absoluto a BaaS e Plataformas Proprietárias: É terminantemente proibido recomendar Backend-as-a-Service (Supabase, Firebase, Appwrite, Pocketbase) ou Auth-as-a-Service externo (Clerk, Auth0, Kinde, Stytch, AWS Cognito).
+     * Motivação Técnica para o Agente Autônomo: Agentes de IA (Cursor, Windsurf, Claude Code) precisam de um ambiente 100% executável localmente via código e containers. Serviços em nuvem com dashboards proprietários quebram a execução autônoma do loop pois exigem login em navegadores, provisionamento manual em painéis externos e chaves de API proprietárias.
+     * Padrão Esperado: Stack baseada em código aberto, conteinerizável e auditável (ex: Frontend em Next.js/React + Tailwind CSS; Backend em Node.js com Fastify ou NestJS - escolha um; Banco de dados relacional PostgreSQL via Docker Compose com Prisma ORM; Autenticação nativa baseada em código com JWT + bcrypt / Passport / Argon2; Armazenamento local ou MinIO S3 compatível se houver upload de arquivos).
+
+5. INSTRUÇÕES DIDÁTICAS DE USO:
+   - Em usageInstructions, explique com clareza passo a passo como o desenvolvedor deve:
+     1. Baixar os artefatos de requisitos (requirements.md) e escopo (scope.md) gerados pelo Context-Whisperer.
+     2. Criar a pasta do seu novo projeto e colocar os arquivos dentro da pasta docs/ (ou na raiz do projeto).
+     3. Abrir a pasta do projeto no editor com suporte a agente (Cursor em modo Agent/Composer, Windsurf no modo Cascade, Claude Code no terminal ou VS Code com Roo Code).
+     4. Copiar o Prompt Mestre gerado e colar no chat do agente (ou salvar em .cursorrules / AGENT.md).
+     5. Disparar a execução e acompanhar a construção autônoma do MVP.
+
+6. FORMATO DE SAÍDA:
+   - Retorne EXCLUSIVAMENTE um JSON estruturado seguindo o schema fornecido.
+   - O campo masterPrompt deve conter o texto puro em Markdown, SEM ser envolvido por crases triplas externas (\`\`\`markdown ... \`\`\`).`;
+
+const DEFAULT_RECOMMENDED_PROMPT_RESPONSE_TEMPLATE = `# 🚀 Prompt Recomendado para Geração do MVP (AI Coding Blueprint)
+
+## 📌 Visão Geral do Projeto
+{{projectOverview}}
+
+## 🛠️ Stack Tecnológica Recomendada
+{{recommendedStack}}
+
+## 🗺️ Roadmap de Implementação Sugerido
+{{implementationRoadmap}}
+
+## 📋 Prompt Mestre para Copiar e Colar (Cursor / Windsurf / Claude Code)
+> [!TIP]
+> Copie o bloco de código abaixo e cole no chat ou arquivo de regras (ex: \`.cursorrules\`, \`AGENT.md\` ou prompt inicial) da sua ferramenta de AI Coding favorita:
+
+\`\`\`\`markdown
+{{masterPrompt}}
+\`\`\`\`
+
+## 💡 Instruções de Uso
+{{usageInstructions}}
+`;
+
 const REQUIREMENTS_QUALITY_CONSTRAINTS = [
   // --- GRUPO A: Regras Core (Universais - Sempre Ativas) ---
   {
@@ -437,6 +508,45 @@ async function main() {
 
   console.log(
     `✅ [Seed] Template judge_requirements_prompt garantido com ID: ${judgeRequirementsPromptTemplate.id}`,
+  );
+
+  const defaultRecommendedPromptTemplate = await prisma.template.upsert({
+    where: { name: 'default_recommended_prompt' },
+    update: {
+      description:
+        'Template de Síntese e Engenharia de Prompt para geração do Prompt Mestre do MVP',
+      content: DEFAULT_RECOMMENDED_PROMPT_TEMPLATE,
+    },
+    create: {
+      name: 'default_recommended_prompt',
+      description:
+        'Template de Síntese e Engenharia de Prompt para geração do Prompt Mestre do MVP',
+      content: DEFAULT_RECOMMENDED_PROMPT_TEMPLATE,
+    },
+  });
+
+  console.log(
+    `✅ [Seed] Template default_recommended_prompt garantido com ID: ${defaultRecommendedPromptTemplate.id}`,
+  );
+
+  const defaultRecommendedPromptResponseTemplate =
+    await prisma.template.upsert({
+      where: { name: 'default_recommended_prompt_response' },
+      update: {
+        description:
+          'Template Markdown para apresentação do Prompt Mestre do MVP',
+        content: DEFAULT_RECOMMENDED_PROMPT_RESPONSE_TEMPLATE,
+      },
+      create: {
+        name: 'default_recommended_prompt_response',
+        description:
+          'Template Markdown para apresentação do Prompt Mestre do MVP',
+        content: DEFAULT_RECOMMENDED_PROMPT_RESPONSE_TEMPLATE,
+      },
+    });
+
+  console.log(
+    `✅ [Seed] Template default_recommended_prompt_response garantido com ID: ${defaultRecommendedPromptResponseTemplate.id}`,
   );
 
   console.log('🌱 [Seed] Semeando catálogo de QualityConstraints para REQUIREMENTS...');

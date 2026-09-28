@@ -282,6 +282,7 @@ ${artifact.generatedContent}
         type: SseEventType.ARTIFACT_COMPLETED,
         userId: state.userId,
         requisitionId: state.requisitionId,
+        projectName: state.projectRequest.name,
         threadId: threadId ?? undefined,
         timestamp: new Date().toISOString(),
         data: {
@@ -293,27 +294,6 @@ ${artifact.generatedContent}
       await redis.publish(
         `USER_EVENTS_${state.userId}`,
         JSON.stringify(artifactCompletedEvent),
-      );
-    }
-
-    // Marca Requisition como COMPLETED
-    await prisma.requisition.update({
-      where: { id: state.requisitionId },
-      data: { status: "COMPLETED" },
-    });
-
-    if (redis && state.userId) {
-      const completedEvent: SseEventMessage = {
-        type: SseEventType.REQUISITION_STATUS_CHANGED,
-        userId: state.userId,
-        requisitionId: state.requisitionId,
-        threadId: threadId ?? undefined,
-        timestamp: new Date().toISOString(),
-        data: { status: "COMPLETED" },
-      };
-      await redis.publish(
-        `USER_EVENTS_${state.userId}`,
-        JSON.stringify(completedEvent),
       );
     }
   } else {

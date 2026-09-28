@@ -119,6 +119,7 @@ describe('scopeAgent node', () => {
     expect(mockTemplateFindUnique).toHaveBeenCalledWith({ where: { name: 'default_scope' } });
     expect(mockTemplateFindUnique).toHaveBeenCalledWith({ where: { name: 'default_scope_response' } });
     expect(mockInvoke).toHaveBeenCalledWith(expect.stringContaining('Você é um Engenheiro de Requisitos Sênior rigoroso.'));
+    expect(mockInvoke).toHaveBeenCalledWith(expect.stringContaining('Nome do Projeto: Smart Task Manager'));
     expect(mockScopeProposalCreate).toHaveBeenCalledWith({
       data: {
         requisitionId: 'req-123',
@@ -134,6 +135,10 @@ describe('scopeAgent node', () => {
     expect(mockRedisPublish).toHaveBeenCalledWith(
       'USER_EVENTS_user-456',
       expect.stringContaining('"type":"SCOPE_READY"'),
+    );
+    expect(mockRedisPublish).toHaveBeenCalledWith(
+      'USER_EVENTS_user-456',
+      expect.stringContaining('"projectName":"Smart Task Manager"'),
     );
     expect(result.scopeProposalId).toBe('prop-999');
     expect(result.messages).toHaveLength(1);

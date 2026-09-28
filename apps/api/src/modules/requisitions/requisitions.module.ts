@@ -7,6 +7,6 @@ import { RequisitionRepository } from './requisition.repository';
 @Module({
   imports: [DatabaseModule],
   providers: [RequisitionRepository, RequisitionsService],
-  exports: [RequisitionsService],
+  exports: [RequisitionsService, RequisitionRepository],
 })
 export class RequisitionsModule {}

@@ -7,6 +7,7 @@ export enum ArtifactType {
   USER_STORIES = 'USER_STORIES',
   DOMAIN_MODEL = 'DOMAIN_MODEL',
   API_SPEC = 'API_SPEC',
+  RECOMMENDED_PROMPT = 'RECOMMENDED_PROMPT',
 }
 
 registerEnumType(ArtifactType, {
