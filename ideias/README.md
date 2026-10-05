@@ -25,6 +25,13 @@ Este diretório centraliza o histórico de decisões técnicas, a especificaçã
 | 🏷️ [**`planejamento_persistencia_requisition_name_e_usos.md`**](./planejamento_persistencia_requisition_name_e_usos.md) | Persistência de `Requisition.name`, slugificação de arquivos ZIP, injeção no `scopeAgent` e usos no ecossistema. | **Concluído** |
 | 🚀 [**`planejamento_prompt_recomendado_mvp_loop_engineering.md`**](./planejamento_prompt_recomendado_mvp_loop_engineering.md) | Agente de Prompt Recomendado de MVP (`recommendedPromptAgent`), Master Prompt com Loop Engineering, Code-First stack e referenciamento dinâmico. | **Concluído** |
 | 🏷️ [**`planejamento_enriquecimento_sse_project_name_e_nome_zip.md`**](./planejamento_enriquecimento_sse_project_name_e_nome_zip.md) | Nomenclatura Semântica do ZIP (`artifacts-...`) & Enriquecimento SSE com `projectName`. | **Concluído** |
+| 🌐 [**`planejamento_setup_e_migracao_frontend_monorepo.md`**](./planejamento_setup_e_migracao_frontend_monorepo.md) | Setup, Onboarding e Estratégia de Migração do Frontend para o Monorepo PNPM (`apps/web`). | **Concluído (Fase 1)** |
+| 🅰️ [**`planejamento_migracao_frontend_angular_21.md`**](./planejamento_migracao_frontend_angular_21.md) | Migração do Frontend para Angular 21 (LTS) com Standalone, Signals, Zoneless, Control Flow e Application Builder. | **Concluído (Fase 2)** |
+| 🔌 [**`planejamento_integracao_frontend_backend.md`**](./planejamento_integracao_frontend_backend.md) | Integração Real Frontend (Angular 21) ↔ Backend (GraphQL + SSE), Queries de Projetos, Sessão e Streaming. | **Concluído (Fase 3)** |
+| 🔐 [**`planejamento_autenticacao_e_desmock_frontend.md`**](./planejamento_autenticacao_e_desmock_frontend.md) | Autenticação Real (Login / Cadastro via GraphQL), Route Guards, Gestão de Sessão JWT e Desmockagem Integral do Frontend. | **Concluído (Fase 4)** |
+| ⚡ [**`planejamento_sse_stream_refactor_e_notificacoes_toast.md`**](./planejamento_sse_stream_refactor_e_notificacoes_toast.md) | Reformulação Segura do SSE (Zero JWT em Query Params), Notificações Toast Humanizadas & Hidratação Contextual. | **Concluído (Fase 5)** |
+| 🪟 [**`planejamento_correcao_aba_escopo_e_simplificacao_abas.md`**](./planejamento_correcao_aba_escopo_e_simplificacao_abas.md) | Correção da Aba de Escopo em Branco (Herança de Parâmetros de Rota) & Simplificação para 2 Abas Essenciais (`Escopo` e `Artefatos`). | **Concluído (Fase 6)** |
+| 🔄 [**`planejamento_correcao_integracao_hitl_e_historico_sidebar.md`**](./planejamento_correcao_integracao_hitl_e_historico_sidebar.md) | Auditoria Geral de Endpoints, Correção HITL (Aceite/Rejeição de Escopo), Histórico Leve com Lazy Loading e Layout da Sidebar. | **Concluído (Fase 7)** |
 
 ---
 

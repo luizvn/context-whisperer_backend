@@ -15,6 +15,12 @@ lerna-debug.log*
 dist/
 build/
 out/
+dist-ssr/
+.output/
+.vinxi/
+.tanstack/
+.wrangler/
+.angular/
 *.tsbuildinfo
 
 # ==========================================

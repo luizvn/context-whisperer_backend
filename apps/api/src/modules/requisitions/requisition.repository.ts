@@ -9,6 +9,30 @@ export class RequisitionRepository {
     });
   }
 
+  async findByUserId(userId: string): Promise<Requisition[]> {
+    return await prisma.requisition.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findByIdWithDetails(id: string): Promise<Requisition | null> {
+    return await prisma.requisition.findUnique({
+      where: { id },
+      include: {
+        scopeProposals: {
+          orderBy: { createdAt: 'desc' },
+        },
+        artifacts: {
+          orderBy: { createdAt: 'asc' },
+        },
+        evaluations: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+  }
+
   async create(data: {
     userId: string;
     name: string;

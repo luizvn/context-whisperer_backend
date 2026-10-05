@@ -24,18 +24,22 @@ export class SseAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
 
-    // 1. Tenta extrair token do header Authorization: Bearer <token>
-    let token = this.extractTokenFromHeader(request);
+    // 1. Extrai token estritamente do header Authorization: Bearer <token>
+    const token = this.extractTokenFromHeader(request);
 
-    // 2. Se não houver no header, tenta extrair da query string ?token=<jwt> (EventSource padrão do browser)
-    if (!token && request.query) {
+    // 2. Veto explícito a tokens JWT trafegando em query parameters por segurança
+    if (request.query) {
       const query = request.query as { token?: string };
-      token = query.token;
+      if (query.token) {
+        throw new UnauthorizedException(
+          'O envio de token JWT via query parameter (?token=...) não é permitido por motivos de segurança. Utilize o cabeçalho Authorization: Bearer <token>.',
+        );
+      }
     }
 
     if (!token) {
       throw new UnauthorizedException(
-        'Token de autenticação não fornecido para SSE',
+        'Token de autenticação não fornecido no cabeçalho Authorization para SSE',
       );
     }
 

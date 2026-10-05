@@ -1,4 +1,7 @@
 import { Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { ScopeProposalModel } from '../scope-proposals/scope-proposal.model';
+import { ArtifactModel } from '../artifacts/artifact.model';
+import { ArtifactEvaluationModel } from '../artifacts/artifact-evaluation.model';
 
 export enum RequisitionStatus {
   AWAITING_SCOPE = 'AWAITING_SCOPE',
@@ -33,6 +36,15 @@ export class RequisitionModel {
 
   @Field({ nullable: true })
   threadId?: string;
+
+  @Field(() => [ScopeProposalModel], { nullable: true })
+  scopeProposals?: ScopeProposalModel[];
+
+  @Field(() => [ArtifactModel], { nullable: true })
+  artifacts?: ArtifactModel[];
+
+  @Field(() => [ArtifactEvaluationModel], { nullable: true })
+  evaluations?: ArtifactEvaluationModel[];
 
   @Field()
   createdAt!: Date;

@@ -2,6 +2,33 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+"""Auditoria e avaliação causal registrada pelo Agente Juiz"""
+type ArtifactEvaluationModel {
+  artifactId: String!
+  counterfactualFeedback: String
+  createdAt: DateTime!
+  id: ID!
+  iteration: Int!
+  requisitionId: String!
+  rootCauses: [String!]!
+  score: Float!
+  status: String!
+  summary: String!
+}
+
+"""Artefato técnico gerado pelo fluxo de IA"""
+type ArtifactModel {
+  artifactType: String!
+  createdAt: DateTime!
+  fileName: String!
+  generatedContent: String
+  id: ID!
+  iterationCount: Int!
+  requisitionId: String!
+  status: String!
+  updatedAt: DateTime!
+}
+
 """Os tipos de artefatos que o sistema pode gerar"""
 enum ArtifactType {
   API_SPEC
@@ -23,7 +50,7 @@ type ArtifactsZipModel {
   """Tipo MIME do arquivo (application/zip)"""
   contentType: String!
 
-  """Nome sugerido do arquivo ZIP (ex: specs-6aadad76.zip)"""
+  """Nome sugerido do arquivo ZIP (ex: artifacts-projeto-telemedicina.zip)"""
   fileName: String!
 
   """Lista completa de caminhos dos arquivos incluídos dentro do ZIP"""
@@ -86,8 +113,40 @@ type Query {
   downloadArtifactsZip(requisitionId: ID!): ArtifactsZipModel!
   me: UserModel!
 
+  """Retorna a lista de projetos do usuário autenticado"""
+  myProjects: [RequisitionModel!]!
+
+  """
+  Retorna os detalhes completos de um projeto pelo ID com escopo e artefatos
+  """
+  project(id: ID!): RequisitionModel!
+
   """Busca uma proposta de escopo pelo ID"""
   scopeProposal(id: String!): ScopeProposalModel!
+}
+
+type RequisitionModel {
+  artifacts: [ArtifactModel!]
+  createdAt: DateTime!
+  evaluations: [ArtifactEvaluationModel!]
+  id: ID!
+
+  """Nome do projeto atribuído pelo usuário"""
+  name: String!
+  originalPrompt: String!
+  scopeProposals: [ScopeProposalModel!]
+  status: RequisitionStatus!
+  threadId: String
+  updatedAt: DateTime!
+  userId: String!
+}
+
+enum RequisitionStatus {
+  AWAITING_SCOPE
+  COMPLETED
+  FAILED
+  GENERATING
+  GENERATING_ARTIFACTS
 }
 
 type ScopeProposalModel {

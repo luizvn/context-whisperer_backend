@@ -14,7 +14,30 @@ export class RequisitionsService {
       throw new EntityNotFoundException('Requisition', id);
     }
 
-    return requisition;
+    return requisition as RequisitionModel;
+  }
+
+  async findByUserId(userId: string): Promise<RequisitionModel[]> {
+    const requisitions = await this.requisitionRepository.findByUserId(userId);
+    return requisitions as RequisitionModel[];
+  }
+
+  async findByIdWithDetails(
+    id: string,
+    userId?: string,
+  ): Promise<RequisitionModel> {
+    const requisition =
+      await this.requisitionRepository.findByIdWithDetails(id);
+
+    if (!requisition) {
+      throw new EntityNotFoundException('Requisition', id);
+    }
+
+    if (userId && requisition.userId !== userId) {
+      throw new EntityNotFoundException('Requisition', id);
+    }
+
+    return requisition as unknown as RequisitionModel;
   }
 
   async create(

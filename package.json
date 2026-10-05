@@ -6,6 +6,7 @@
     "build": "pnpm -r build",
     "start:dev:api": "pnpm --filter @context-whisperer/api start:dev",
     "start:dev:worker": "pnpm --filter @context-whisperer/worker start:dev",
+    "start:dev:web": "pnpm --filter @context-whisperer/web dev",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "test:integration": "pnpm -r run test:integration",

@@ -2,6 +2,7 @@ import { ScopeProposalRepository } from '../../../src/modules/scope-proposals/sc
 import { ScopeProposal } from '@context-whisperer/database';
 
 const mockFindUnique = jest.fn();
+const mockFindFirst = jest.fn();
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 
@@ -10,6 +11,8 @@ jest.mock('@context-whisperer/database', () => ({
     scopeProposal: {
       findUnique: (...args: unknown[]): Promise<unknown> =>
         Promise.resolve(mockFindUnique(...args)),
+      findFirst: (...args: unknown[]): Promise<unknown> =>
+        Promise.resolve(mockFindFirst(...args)),
       create: (...args: unknown[]): Promise<unknown> =>
         Promise.resolve(mockCreate(...args)),
       update: (...args: unknown[]): Promise<unknown> =>
@@ -49,13 +52,34 @@ describe('ScopeProposalRepository', () => {
       expect(result).toEqual(mockProposal);
     });
 
-    it('should return null when proposal is not found', async () => {
+    it('should fallback to findFirst by requisitionId when not found by id', async () => {
       mockFindUnique.mockResolvedValue(null);
+      mockFindFirst.mockResolvedValue(mockProposal);
+
+      const result = await repository.findById('req-123');
+
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { id: 'req-123' },
+      });
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: { requisitionId: 'req-123' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual(mockProposal);
+    });
+
+    it('should return null when proposal is not found by id or requisitionId', async () => {
+      mockFindUnique.mockResolvedValue(null);
+      mockFindFirst.mockResolvedValue(null);
 
       const result = await repository.findById('non-existent');
 
       expect(mockFindUnique).toHaveBeenCalledWith({
         where: { id: 'non-existent' },
+      });
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: { requisitionId: 'non-existent' },
+        orderBy: { createdAt: 'desc' },
       });
       expect(result).toBeNull();
     });

@@ -48,7 +48,7 @@ export class ScopeProposalService {
     }
 
     return this.scopeProposalRepository.updateStatus(
-      id,
+      proposal.id,
       ScopeProposalStatus.APPROVED,
     );
   }
@@ -65,7 +65,7 @@ export class ScopeProposalService {
     }
 
     return this.scopeProposalRepository.updateStatus(
-      id,
+      proposal.id,
       ScopeProposalStatus.REJECTED,
       feedback.trim(),
     );

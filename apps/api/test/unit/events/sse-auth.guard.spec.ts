@@ -75,14 +75,12 @@ describe('SseAuthGuard', () => {
     expect(mockFindById).toHaveBeenCalledWith('user-guard-123');
   });
 
-  it('should authenticate successfully with query parameter ?token=...', async () => {
-    const context = createMockContext({}, { token: 'valid-query-token' });
-    const result = await guard.canActivate(context);
+  it('should reject authentication and throw UnauthorizedException when token is sent via query parameter ?token=...', async () => {
+    const context = createMockContext({}, { token: 'insecure-query-token' });
+    const promise = guard.canActivate(context);
 
-    expect(result).toBe(true);
-    expect(mockVerifyAsync).toHaveBeenCalledWith('valid-query-token', {
-      secret: 'test-secret',
-    });
+    await expect(promise).rejects.toThrow(UnauthorizedException);
+    expect(mockVerifyAsync).not.toHaveBeenCalled();
   });
 
   it('should throw UnauthorizedException when no token is present', async () => {

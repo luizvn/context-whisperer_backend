@@ -21,6 +21,7 @@ Este é o backend do projeto **Context-Whisperer**, estruturado como um monorepo
 context-whisperer_backend/
 ├── apps/
 │   ├── api/                     # Gateway Web NestJS (Fastify + GraphQL + Auth + BullMQ Producer)
+│   ├── web/                     # Frontend SPA (Angular 21 LTS + Standalone + Signals + Zoneless + Tailwind v4)
 │   └── worker/                  # Serviço Worker (BullMQ Consumer + LangGraph + OpenAI)
 ├── packages/
 │   ├── core/                    # DTOs, Schemas Zod, Enums e Tipagens Compartilhadas
@@ -36,6 +37,7 @@ context-whisperer_backend/
 - `pnpm run build`: Compila os pacotes compartilhados e as aplicações.
 - `pnpm run start:dev:api`: Inicia a API NestJS em modo watch.
 - `pnpm run start:dev:worker`: Inicia o Worker em modo watch.
+- `pnpm run start:dev:web`: Inicia o frontend Angular em modo dev (porta 8080).
 - `pnpm run lint`: Executa o linter com checagem de tipos em todo o monorepo.
 
 ### Banco de Dados (Prisma)
